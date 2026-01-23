@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useAppStore } from "@/store";
-import { Card, Badge, EmptyState } from "@/components/ui";
-import { TP_COLORS_LIGHT, SEVERITY_COLORS, PsvEvidence } from "@/types";
-import { generateId } from "@/lib/utils";
-import { getAssessmentName } from "@/data/mockData";
+import { Card, Badge, EmptyState, Spinner } from "@/components/ui";
+import { TP_COLORS_LIGHT, SEVERITY_COLORS } from "@/types";
+import {
+  useStudents,
+  useBehaviorEvents,
+  usePbdRecords,
+  usePsvTasks,
+  usePsvEvidence,
+  useAssessments,
+  useAppSettings,
+} from "@/hooks/useSupabase";
 import {
   formatDate,
   isToday,
@@ -43,14 +49,56 @@ export default function AnakDashboardPage() {
   const params = useParams();
   const ic = decodeURIComponent(params.ic as string);
 
-  const { students, behaviorEvents, pbdRecords, psvTasks, psvEvidence, updatePsvEvidence, showToast, settings } = useAppStore();
+  // Supabase hooks
+  const { getStudentByIc } = useStudents();
+  const { behaviorEvents, loading: eventsLoading } = useBehaviorEvents();
+  const { pbdRecords, loading: pbdLoading } = usePbdRecords();
+  const { psvTasks, loading: tasksLoading } = usePsvTasks();
+  const { psvEvidence, upsertEvidence, loading: evidenceLoading } = usePsvEvidence();
+  const { assessments } = useAssessments();
+  const { pbdVisibleToParents, loading: settingsLoading } = useAppSettings();
 
+  // Local state
+  const [student, setStudent] = useState<Awaited<ReturnType<typeof getStudentByIc>> | null>(null);
+  const [studentLoading, setStudentLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("sahsiah");
   const [dateFilter, setDateFilter] = useState<DateFilter>("month");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
-  // Find student
-  const student = students.find((s) => s.noKp === ic);
+  // Toast helper
+  const showToast = (text: string, type: "success" | "error" = "success") => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Fetch student on mount
+  useEffect(() => {
+    const fetchStudent = async () => {
+      setStudentLoading(true);
+      const result = await getStudentByIc(ic);
+      setStudent(result);
+      setStudentLoading(false);
+    };
+    fetchStudent();
+  }, [ic, getStudentByIc]);
+
+  // Get assessment name by ID
+  const getAssessmentName = (pentaksiranId: string) => {
+    const assessment = assessments.find((a) => a.id === pentaksiranId);
+    return assessment?.nama || pentaksiranId;
+  };
+
+  // Loading state
+  const isLoading = studentLoading || eventsLoading || pbdLoading || tasksLoading || evidenceLoading || settingsLoading;
+
+  if (studentLoading) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   // If student not found
   if (!student) {
@@ -79,7 +127,7 @@ export default function AnakDashboardPage() {
 
   // Get student's events
   const myEvents = behaviorEvents
-    .filter((e) => e.muridId === student.id)
+    .filter((e) => e.murid_id === student.id)
     .filter((e) => {
       if (dateFilter === "today" && !isToday(e.timestamp)) return false;
       if (dateFilter === "week" && !isThisWeek(e.timestamp)) return false;
@@ -92,7 +140,7 @@ export default function AnakDashboardPage() {
   const negatifCount = myEvents.filter((e) => e.kategori === "Negatif").length;
 
   // Get student's PBD records
-  const myPbd = pbdRecords.filter((r) => r.muridId === student.id);
+  const myPbd = pbdRecords.filter((r) => r.murid_id === student.id);
 
   // Group PBD by subject
   const pbdBySubject = myPbd.reduce((acc, record) => {
@@ -103,6 +151,15 @@ export default function AnakDashboardPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
+      {/* Toast */}
+      {toastMessage && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+          toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
+        } text-white`}>
+          {toastMessage.text}
+        </div>
+      )}
+
       {/* Student Header */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-2">
@@ -113,7 +170,7 @@ export default function AnakDashboardPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{student.nama}</h1>
               <p className="text-gray-600">
-                {student.kelas} • {student.noKp}
+                {student.kelas} • {student.no_kp}
               </p>
             </div>
           </div>
@@ -206,62 +263,68 @@ export default function AnakDashboardPage() {
           </div>
 
           {/* Events List */}
-          <div className="space-y-3">
-            {myEvents.length === 0 && (
-              <EmptyState
-                title="Tiada rekod"
-                description="Tiada rekod sahsiah dalam tempoh yang dipilih."
-              />
-            )}
+          {eventsLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {myEvents.length === 0 && (
+                <EmptyState
+                  title="Tiada rekod"
+                  description="Tiada rekod sahsiah dalam tempoh yang dipilih."
+                />
+              )}
 
-            {myEvents.map((event) => (
-              <Card
-                key={event.id}
-                className={`p-4 ${
-                  event.kategori === "Positif"
-                    ? "border-green-100"
-                    : "border-red-100"
-                }`}
-              >
-                <div className="flex gap-4">
-                  <div
-                    className={`mt-1 ${
-                      event.kategori === "Positif"
-                        ? "text-green-500"
-                        : "text-red-500"
-                    }`}
-                  >
-                    {event.kategori === "Positif" ? (
-                      <Star className="w-5 h-5" />
-                    ) : (
-                      <ShieldAlert className="w-5 h-5" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-gray-800">{event.jenis}</h3>
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
-                        <Calendar className="w-3 h-3" />
-                        {formatDate(event.timestamp)}
-                      </div>
+              {myEvents.map((event) => (
+                <Card
+                  key={event.id}
+                  className={`p-4 ${
+                    event.kategori === "Positif"
+                      ? "border-green-100"
+                      : "border-red-100"
+                  }`}
+                >
+                  <div className="flex gap-4">
+                    <div
+                      className={`mt-1 ${
+                        event.kategori === "Positif"
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {event.kategori === "Positif" ? (
+                        <Star className="w-5 h-5" />
+                      ) : (
+                        <ShieldAlert className="w-5 h-5" />
+                      )}
                     </div>
-                    {event.severity && (
-                      <span
-                        className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 border ${
-                          SEVERITY_COLORS[event.severity]
-                        }`}
-                      >
-                        {event.severity}
-                      </span>
-                    )}
-                    <p className="text-sm text-gray-600 mt-2">
-                      {event.catatan || "Tiada catatan tambahan."}
-                    </p>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-gray-800">{event.jenis}</h3>
+                        <div className="flex items-center gap-1 text-xs text-gray-400">
+                          <Calendar className="w-3 h-3" />
+                          {formatDate(event.timestamp)}
+                        </div>
+                      </div>
+                      {event.severity && (
+                        <span
+                          className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 border ${
+                            SEVERITY_COLORS[event.severity]
+                          }`}
+                        >
+                          {event.severity}
+                        </span>
+                      )}
+                      <p className="text-sm text-gray-600 mt-2">
+                        {event.catatan || "Tiada catatan tambahan."}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Note */}
           <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-500">
@@ -277,7 +340,11 @@ export default function AnakDashboardPage() {
       {activeTab === "pbd" && (
         <div className="space-y-6">
           {/* Check if PBD is visible to parents */}
-          {!settings.pbdVisibleToParents ? (
+          {settingsLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          ) : !pbdVisibleToParents ? (
             <Card className="p-8 text-center">
               <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Lock className="w-8 h-8 text-amber-600" />
@@ -290,6 +357,10 @@ export default function AnakDashboardPage() {
                 Sila tunggu pengumuman daripada guru untuk melihat rekod PBD anak anda.
               </p>
             </Card>
+          ) : pbdLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
           ) : (
             <>
               {Object.keys(pbdBySubject).length === 0 && (
@@ -301,53 +372,53 @@ export default function AnakDashboardPage() {
               )}
 
               {Object.entries(pbdBySubject).map(([subjek, records]) => (
-            <Card key={subjek} className="overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b font-bold text-gray-700 flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                {subjek === "BM"
-                  ? "Bahasa Melayu"
-                  : subjek === "PSV"
-                  ? "Pendidikan Seni Visual"
-                  : subjek}
-              </div>
-              <div className="divide-y">
-                {records.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="p-4 flex justify-between items-center"
-                  >
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">
-                        {getAssessmentName(rec.pentaksiranId)}
-                      </span>
-                      {rec.catatan && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {rec.catatan}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end">
-                      {rec.tp ? (
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-bold border ${
-                            TP_COLORS_LIGHT[rec.tp]
-                          }`}
-                        >
-                          TP{rec.tp}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">
-                          Belum dinilai
-                        </span>
-                      )}
-                    </div>
+                <Card key={subjek} className="overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b font-bold text-gray-700 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    {subjek === "BM"
+                      ? "Bahasa Melayu"
+                      : subjek === "PSV"
+                      ? "Pendidikan Seni Visual"
+                      : subjek}
                   </div>
-                ))}
-              </div>
-            </Card>
-          ))}
+                  <div className="divide-y">
+                    {records.map((rec) => (
+                      <div
+                        key={rec.id}
+                        className="p-4 flex justify-between items-center"
+                      >
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">
+                            {getAssessmentName(rec.pentaksiran_id)}
+                          </span>
+                          {rec.catatan && (
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {rec.catatan}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end">
+                          {rec.tp ? (
+                            <span
+                              className={`px-3 py-1 rounded-full text-sm font-bold border ${
+                                TP_COLORS_LIGHT[rec.tp]
+                              }`}
+                            >
+                              TP{rec.tp}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">
+                              Belum dinilai
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ))}
 
-          {/* TP Legend */}
+              {/* TP Legend */}
               <Card className="p-4">
                 <h4 className="font-medium text-gray-700 mb-3">Petunjuk Tahap Penguasaan:</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
@@ -389,7 +460,7 @@ export default function AnakDashboardPage() {
 
         // Get evidence for this student
         const getMyEvidence = (taskId: string) =>
-          psvEvidence.find((e) => e.muridId === student.id && e.tugasanId === taskId);
+          psvEvidence.find((e) => e.murid_id === student.id && e.tugasan_id === taskId);
 
         // Count stats
         const completedCount = myPsvTasks.filter((t) => {
@@ -403,7 +474,7 @@ export default function AnakDashboardPage() {
         }).length;
 
         // Handle image upload
-        const handleImageUpload = (taskId: string, file: File) => {
+        const handleImageUpload = async (taskId: string, file: File) => {
           if (file.size > 2 * 1024 * 1024) {
             showToast("Saiz gambar terlalu besar. Maksimum 2MB.", "error");
             return;
@@ -414,62 +485,77 @@ export default function AnakDashboardPage() {
           }
 
           const reader = new FileReader();
-          reader.onloadend = () => {
+          reader.onloadend = async () => {
             const base64 = reader.result as string;
             const current = getMyEvidence(taskId);
-            const evidence: PsvEvidence = current
-              ? { ...current, gambarBukti: base64 }
-              : {
-                  id: generateId("ev"),
-                  tugasanId: taskId,
-                  muridId: student.id,
-                  linkBukti: "",
-                  gambarBukti: base64,
-                  catatan: "",
-                  status: "Belum Hantar",
-                };
-            updatePsvEvidence(evidence);
+
+            await upsertEvidence({
+              tugasan_id: taskId,
+              murid_id: student.id,
+              link_bukti: current?.link_bukti || "",
+              gambar_url: base64,
+              catatan: current?.catatan || "",
+              status: current?.status || "Belum Hantar",
+            });
             showToast("Gambar berjaya dimuat naik", "success");
           };
           reader.readAsDataURL(file);
         };
 
         // Handle remove image
-        const handleRemoveImage = (taskId: string) => {
+        const handleRemoveImage = async (taskId: string) => {
           const current = getMyEvidence(taskId);
           if (current) {
-            updatePsvEvidence({ ...current, gambarBukti: "" });
+            await upsertEvidence({
+              tugasan_id: taskId,
+              murid_id: student.id,
+              link_bukti: current.link_bukti,
+              gambar_url: "",
+              catatan: current.catatan,
+              status: current.status,
+            });
             showToast("Gambar telah dipadam", "success");
           }
         };
 
         // Handle submit evidence
-        const handleSubmit = (taskId: string) => {
+        const handleSubmit = async (taskId: string) => {
           const current = getMyEvidence(taskId);
-          if (!current?.gambarBukti && !current?.linkBukti) {
+          if (!current?.gambar_url && !current?.link_bukti) {
             showToast("Sila muat naik gambar atau masukkan pautan terlebih dahulu", "error");
             return;
           }
-          updatePsvEvidence({ ...current, status: "Sudah Hantar" });
+          await upsertEvidence({
+            tugasan_id: taskId,
+            murid_id: student.id,
+            link_bukti: current.link_bukti,
+            gambar_url: current.gambar_url,
+            catatan: current.catatan,
+            status: "Sudah Hantar",
+          });
           showToast("Bukti berjaya dihantar!", "success");
         };
 
         // Handle link change
-        const handleLinkChange = (taskId: string, link: string) => {
+        const handleLinkChange = async (taskId: string, link: string) => {
           const current = getMyEvidence(taskId);
-          const evidence: PsvEvidence = current
-            ? { ...current, linkBukti: link }
-            : {
-                id: generateId("ev"),
-                tugasanId: taskId,
-                muridId: student.id,
-                linkBukti: link,
-                gambarBukti: "",
-                catatan: "",
-                status: "Belum Hantar",
-              };
-          updatePsvEvidence(evidence);
+          await upsertEvidence({
+            tugasan_id: taskId,
+            murid_id: student.id,
+            link_bukti: link,
+            gambar_url: current?.gambar_url || "",
+            catatan: current?.catatan || "",
+            status: current?.status || "Belum Hantar",
+          });
         };
+
+        if (tasksLoading || evidenceLoading) {
+          return (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          );
+        }
 
         return (
           <div className="space-y-6">
@@ -531,7 +617,7 @@ export default function AnakDashboardPage() {
                             <h3 className="font-bold text-gray-800">{task.nama}</h3>
                             <p className="text-xs text-gray-500 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              Tarikh Akhir: {formatDate(task.tarikhAkhir)}
+                              Tarikh Akhir: {formatDate(task.tarikh_akhir)}
                             </p>
                           </div>
                         </div>
@@ -546,16 +632,16 @@ export default function AnakDashboardPage() {
                       {/* Evidence Content */}
                       <div className="p-4 space-y-4">
                         {/* Show uploaded image preview */}
-                        {evidence?.gambarBukti && (
+                        {evidence?.gambar_url && (
                           <div>
                             <p className="text-xs text-gray-500 mb-2">Gambar Hasil Karya:</p>
                             <div className="flex items-start gap-3">
                               <div
                                 className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer group"
-                                onClick={() => setPreviewImage(evidence.gambarBukti!)}
+                                onClick={() => setPreviewImage(evidence.gambar_url!)}
                               >
                                 <img
-                                  src={evidence.gambarBukti}
+                                  src={evidence.gambar_url}
                                   alt="Bukti PSV"
                                   className="w-full h-full object-cover"
                                 />
@@ -580,7 +666,7 @@ export default function AnakDashboardPage() {
                         {!isSubmitted && (
                           <div className="space-y-3">
                             {/* Image Upload */}
-                            {!evidence?.gambarBukti && (
+                            {!evidence?.gambar_url && (
                               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer bg-purple-50 hover:bg-purple-100 transition-colors">
                                 <div className="flex flex-col items-center justify-center py-4">
                                   <Upload className="w-8 h-8 text-purple-400 mb-2" />
@@ -618,7 +704,7 @@ export default function AnakDashboardPage() {
                                 type="text"
                                 placeholder="https://drive.google.com/..."
                                 className="w-full text-sm border rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
-                                value={evidence?.linkBukti || ""}
+                                value={evidence?.link_bukti || ""}
                                 onChange={(e) => handleLinkChange(task.id, e.target.value)}
                               />
                             </div>
@@ -626,7 +712,7 @@ export default function AnakDashboardPage() {
                             {/* Submit button */}
                             <button
                               onClick={() => handleSubmit(task.id)}
-                              disabled={!evidence?.gambarBukti && !evidence?.linkBukti}
+                              disabled={!evidence?.gambar_url && !evidence?.link_bukti}
                               className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                               <Send className="w-4 h-4" />
@@ -636,11 +722,11 @@ export default function AnakDashboardPage() {
                         )}
 
                         {/* Show link if submitted */}
-                        {isSubmitted && evidence?.linkBukti && (
+                        {isSubmitted && evidence?.link_bukti && (
                           <div>
                             <p className="text-xs text-gray-500 mb-1">Pautan Bukti:</p>
                             <a
-                              href={evidence.linkBukti}
+                              href={evidence.link_bukti}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"

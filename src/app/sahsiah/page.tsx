@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { useAppStore } from "@/store";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Card,
   Select,
@@ -9,29 +8,43 @@ import {
   Breadcrumb,
   EmptyState,
   Textarea,
+  Spinner,
 } from "@/components/ui";
 import {
-  BehaviorEvent,
+  useStudents,
+  useBehaviorEvents,
+} from "@/hooks/useSupabase";
+import {
   Severity,
   PRESET_EVENTS,
   ALL_CLASSES,
   TOKEN_VALUES,
   getTokenValue,
 } from "@/types";
-import { generateId, formatTime, isToday, isThisWeek, isThisMonth } from "@/lib/utils";
-import { Trash2, Clock, Coins, TrendingUp, TrendingDown, CheckSquare, Square, Users, Search } from "lucide-react";
+import { formatTime, isToday, isThisWeek, isThisMonth } from "@/lib/utils";
+import { Trash2, Clock, TrendingUp, TrendingDown, CheckSquare, Square, Users, Search } from "lucide-react";
 
 type DateFilter = "today" | "week" | "month" | "all";
 
 export default function SahsiahPage() {
-  const { students, behaviorEvents, addEvent, deleteEvent, showToast } = useAppStore();
+  // Supabase hooks
+  const { students, loading: studentsLoading } = useStudents();
+  const { behaviorEvents, addEvent, deleteEvent, loading: eventsLoading } = useBehaviorEvents();
 
+  // Local state
   const [selectedClass, setSelectedClass] = useState<string>("6 Topaz");
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [severity, setSeverity] = useState<Severity>("Medium");
   const [catatan, setCatatan] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
   const [searchQuery, setSearchQuery] = useState("");
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // Toast helper
+  const showToast = (text: string, type: "success" | "error" = "success") => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Get students in selected class (filtered by search)
   const classStudents = useMemo(() =>
@@ -39,13 +52,13 @@ export default function SahsiahPage() {
       s.kelas === selectedClass &&
       (searchQuery === "" ||
        s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       s.noKp.replace(/-/g, "").includes(searchQuery.replace(/-/g, "")))
+       s.no_kp.replace(/-/g, "").includes(searchQuery.replace(/-/g, "")))
     ),
     [students, selectedClass, searchQuery]
   );
 
   // Filter events by date
-  const filterEventsByDate = (events: BehaviorEvent[]) => {
+  const filterEventsByDate = (events: typeof behaviorEvents) => {
     switch (dateFilter) {
       case "today":
         return events.filter((e) => isToday(e.timestamp));
@@ -84,7 +97,7 @@ export default function SahsiahPage() {
   };
 
   // Handle bulk log event
-  const handleBulkLogEvent = (preset: (typeof PRESET_EVENTS)[0]) => {
+  const handleBulkLogEvent = async (preset: (typeof PRESET_EVENTS)[0]) => {
     if (selectedStudentIds.size === 0) {
       showToast("Sila pilih sekurang-kurangnya seorang murid", "error");
       return;
@@ -98,24 +111,24 @@ export default function SahsiahPage() {
     const timestamp = new Date().toISOString();
 
     // Create events for all selected students
-    selectedStudentIds.forEach((studentId) => {
+    const promises = Array.from(selectedStudentIds).map(async (studentId) => {
       const student = classStudents.find((s) => s.id === studentId);
       if (student) {
-        const newEvent: BehaviorEvent = {
-          id: generateId("evt"),
-          muridId: student.id,
-          namaMurid: student.nama,
+        await addEvent({
+          murid_id: student.id,
+          nama_murid: student.nama,
           kelas: student.kelas,
           jenis: preset.label,
           kategori: preset.kategori,
           severity: finalSeverity,
           catatan: catatan,
           timestamp: timestamp,
-          isPublic: preset.isPublic,
-        };
-        addEvent(newEvent);
+          is_public: preset.isPublic,
+        });
       }
     });
+
+    await Promise.all(promises);
 
     const tokenDisplay = tokenValue > 0 ? `+${tokenValue}` : `${tokenValue}`;
     showToast(
@@ -126,9 +139,9 @@ export default function SahsiahPage() {
   };
 
   // Handle delete event
-  const handleDeleteEvent = (id: string) => {
+  const handleDeleteEvent = async (id: string) => {
     if (window.confirm("Padam rekod ini?")) {
-      deleteEvent(id);
+      await deleteEvent(id);
       showToast("Rekod telah dipadam", "success");
     }
   };
@@ -148,8 +161,19 @@ export default function SahsiahPage() {
   const allSelected = selectedStudentIds.size === classStudents.length && classStudents.length > 0;
   const someSelected = selectedStudentIds.size > 0;
 
+  const isLoading = studentsLoading || eventsLoading;
+
   return (
     <div className="p-4 max-w-7xl mx-auto">
+      {/* Toast */}
+      {toastMessage && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+          toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
+        } text-white`}>
+          {toastMessage.text}
+        </div>
+      )}
+
       <Breadcrumb items={[{ label: "Rekod Token" }]} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -210,29 +234,41 @@ export default function SahsiahPage() {
               </div>
 
               {/* Student List with Checkboxes */}
-              <div className="border border-gray-200 rounded-lg max-h-[300px] overflow-y-auto">
-                {classStudents.map((student, index) => {
-                  const isSelected = selectedStudentIds.has(student.id);
-                  return (
-                    <div
-                      key={student.id}
-                      onClick={() => handleToggleStudent(student.id)}
-                      className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
-                        isSelected ? "bg-blue-50" : "hover:bg-gray-50"
-                      } ${index !== 0 ? "border-t border-gray-100" : ""}`}
-                    >
-                      {isSelected ? (
-                        <CheckSquare className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                      ) : (
-                        <Square className="w-5 h-5 text-gray-300 flex-shrink-0" />
-                      )}
-                      <span className={`text-sm ${isSelected ? "font-medium text-blue-900" : "text-gray-700"}`}>
-                        {student.nama}
-                      </span>
+              {studentsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner />
+                </div>
+              ) : (
+                <div className="border border-gray-200 rounded-lg max-h-[300px] overflow-y-auto">
+                  {classStudents.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      Tiada murid dalam kelas ini
                     </div>
-                  );
-                })}
-              </div>
+                  ) : (
+                    classStudents.map((student, index) => {
+                      const isSelected = selectedStudentIds.has(student.id);
+                      return (
+                        <div
+                          key={student.id}
+                          onClick={() => handleToggleStudent(student.id)}
+                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
+                            isSelected ? "bg-blue-50" : "hover:bg-gray-50"
+                          } ${index !== 0 ? "border-t border-gray-100" : ""}`}
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                          ) : (
+                            <Square className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                          )}
+                          <span className={`text-sm ${isSelected ? "font-medium text-blue-900" : "text-gray-700"}`}>
+                            {student.nama}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Catatan Input */}
@@ -351,73 +387,79 @@ export default function SahsiahPage() {
             </select>
           </div>
 
-          <div className="space-y-3 max-h-[600px] overflow-y-auto">
-            {filteredEvents.length === 0 && (
-              <EmptyState
-                title="Tiada rekod"
-                description={
-                  dateFilter === "today"
-                    ? "Tiada rekod token hari ini"
-                    : "Tiada rekod dalam tempoh ini"
-                }
-              />
-            )}
+          {eventsLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+              {filteredEvents.length === 0 && (
+                <EmptyState
+                  title="Tiada rekod"
+                  description={
+                    dateFilter === "today"
+                      ? "Tiada rekod token hari ini"
+                      : "Tiada rekod dalam tempoh ini"
+                  }
+                />
+              )}
 
-            {filteredEvents.map((event) => {
-              const tokenValue = event.severity
-                ? getTokenValue(event.kategori, event.severity)
-                : 0;
-              return (
-                <div
-                  key={event.id}
-                  className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 animate-in fade-in duration-300"
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Token Badge */}
-                    <div
-                      className={`mt-0.5 px-2 py-1.5 rounded-lg font-bold text-sm ${
-                        event.kategori === "Positif"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {tokenValue > 0 ? `+${tokenValue}` : tokenValue}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start">
-                        <p className="font-bold text-sm text-gray-900 truncate">
-                          {event.namaMurid}
-                        </p>
-                        <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
-                          {formatTime(event.timestamp)}
-                        </span>
+              {filteredEvents.map((event) => {
+                const tokenValue = event.severity
+                  ? getTokenValue(event.kategori, event.severity)
+                  : 0;
+                return (
+                  <div
+                    key={event.id}
+                    className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 animate-in fade-in duration-300"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Token Badge */}
+                      <div
+                        className={`mt-0.5 px-2 py-1.5 rounded-lg font-bold text-sm ${
+                          event.kategori === "Positif"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {tokenValue > 0 ? `+${tokenValue}` : tokenValue}
                       </div>
 
-                      <p className="text-sm font-medium text-gray-700 mt-0.5">
-                        {event.jenis}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className="font-bold text-sm text-gray-900 truncate">
+                            {event.nama_murid}
+                          </p>
+                          <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
+                            {formatTime(event.timestamp)}
+                          </span>
+                        </div>
 
-                      <p className="text-xs text-gray-500 mt-0.5">{event.kelas}</p>
-
-                      {event.catatan && (
-                        <p className="text-xs text-gray-500 mt-2 italic">
-                          "{event.catatan}"
+                        <p className="text-sm font-medium text-gray-700 mt-0.5">
+                          {event.jenis}
                         </p>
-                      )}
-                    </div>
 
-                    <button
-                      onClick={() => handleDeleteEvent(event.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors p-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                        <p className="text-xs text-gray-500 mt-0.5">{event.kelas}</p>
+
+                        {event.catatan && (
+                          <p className="text-xs text-gray-500 mt-2 italic">
+                            "{event.catatan}"
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Stats */}
           <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">

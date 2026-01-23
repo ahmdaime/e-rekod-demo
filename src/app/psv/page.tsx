@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAppStore } from "@/store";
 import {
   Card,
   Select,
@@ -11,13 +10,18 @@ import {
   Modal,
   Breadcrumb,
   EmptyState,
+  Spinner,
 } from "@/components/ui";
-import { PsvTask, PsvEvidence, CLASS_SUBJECT_MAP } from "@/types";
-import { generateId, formatDate } from "@/lib/utils";
+import {
+  useStudents,
+  usePsvTasks,
+  usePsvEvidence,
+} from "@/hooks/useSupabase";
+import { CLASS_SUBJECT_MAP } from "@/types";
+import { formatDate } from "@/lib/utils";
 import {
   Plus,
   ExternalLink,
-  CheckCircle,
   CheckCircle2,
   ArrowLeft,
   Calendar,
@@ -29,17 +33,28 @@ import {
   Clock,
   MessageSquare,
 } from "lucide-react";
+import type { DbPsvTask } from "@/types/database";
 
 export default function PsvPage() {
-  const { students, psvTasks, psvEvidence, addPsvTask, updatePsvEvidence, showToast } =
-    useAppStore();
+  // Supabase hooks
+  const { students, loading: studentsLoading } = useStudents();
+  const { psvTasks, addTask, loading: tasksLoading } = usePsvTasks();
+  const { psvEvidence, upsertEvidence, loading: evidenceLoading } = usePsvEvidence();
 
+  // Local state
   const [selectedClass, setSelectedClass] = useState<string>(CLASS_SUBJECT_MAP["PSV"][0]);
-  const [selectedTask, setSelectedTask] = useState<PsvTask | null>(null);
+  const [selectedTask, setSelectedTask] = useState<DbPsvTask | null>(null);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "submitted" | "reviewed">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [previewImage, setPreviewImage] = useState<{ nama: string; src: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // Toast helper
+  const showToast = (text: string, type: "success" | "error" = "success") => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Get tasks for selected class
   const classTasks = psvTasks.filter((t) => t.kelas === selectedClass);
@@ -47,14 +62,14 @@ export default function PsvPage() {
 
   // Get evidence for a student
   const getEvidence = (studentId: string, taskId: string) =>
-    psvEvidence.find((e) => e.muridId === studentId && e.tugasanId === taskId);
+    psvEvidence.find((e) => e.murid_id === studentId && e.tugasan_id === taskId);
 
   // Filter students based on evidence status and search
   const filteredStudents = classStudents.filter((student) => {
     // Search filter
     if (searchQuery !== "" &&
         !student.nama.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !student.noKp.replace(/-/g, "").includes(searchQuery.replace(/-/g, ""))) {
+        !student.no_kp.replace(/-/g, "").includes(searchQuery.replace(/-/g, ""))) {
       return false;
     }
 
@@ -69,65 +84,69 @@ export default function PsvPage() {
   });
 
   // Handle create new task
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const nama = (form.elements.namedItem("nama") as HTMLInputElement).value;
     const tarikhAkhir = (form.elements.namedItem("tarikhAkhir") as HTMLInputElement).value;
 
-    const newTask: PsvTask = {
-      id: generateId("task"),
+    await addTask({
       nama,
       kelas: selectedClass,
-      tarikhMula: new Date().toISOString().split("T")[0],
-      tarikhAkhir,
-    };
+      tarikh_mula: new Date().toISOString().split("T")[0],
+      tarikh_akhir: tarikhAkhir,
+    });
 
-    addPsvTask(newTask);
     setIsNewTaskModalOpen(false);
     showToast("Tugasan baru telah dicipta", "success");
   };
 
   // Handle update evidence
-  const handleUpdateEvidence = (
+  const handleUpdateEvidence = async (
     studentId: string,
-    field: keyof PsvEvidence,
+    field: "catatan" | "status",
     value: string
   ) => {
     if (!selectedTask) return;
 
     const current = getEvidence(studentId, selectedTask.id);
-    const evidence: PsvEvidence = current
-      ? { ...current, [field]: value }
-      : {
-          id: generateId("ev"),
-          tugasanId: selectedTask.id,
-          muridId: studentId,
-          linkBukti: "",
-          gambarBukti: "",
-          catatan: "",
-          status: "Belum Hantar",
-          [field]: value,
-        };
 
-    updatePsvEvidence(evidence);
+    await upsertEvidence({
+      tugasan_id: selectedTask.id,
+      murid_id: studentId,
+      link_bukti: current?.link_bukti || "",
+      gambar_url: current?.gambar_url || "",
+      catatan: field === "catatan" ? value : (current?.catatan || ""),
+      status: field === "status" ? (value as "Belum Hantar" | "Sudah Hantar" | "Dinilai") : (current?.status || "Belum Hantar"),
+    });
   };
 
   // Mark as reviewed
-  const markAsReviewed = (studentId: string) => {
+  const markAsReviewed = async (studentId: string) => {
     if (!selectedTask) return;
-    handleUpdateEvidence(studentId, "status", "Dinilai");
+    await handleUpdateEvidence(studentId, "status", "Dinilai");
     showToast("Tugasan telah ditanda sebagai disemak", "success");
   };
 
   // Undo review (back to submitted)
-  const undoReview = (studentId: string) => {
+  const undoReview = async (studentId: string) => {
     if (!selectedTask) return;
-    handleUpdateEvidence(studentId, "status", "Sudah Hantar");
+    await handleUpdateEvidence(studentId, "status", "Sudah Hantar");
   };
+
+  const isLoading = studentsLoading || tasksLoading || evidenceLoading;
 
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-6">
+      {/* Toast */}
+      {toastMessage && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+          toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
+        } text-white`}>
+          {toastMessage.text}
+        </div>
+      )}
+
       <Breadcrumb items={[{ label: "Bukti PSV" }]} />
 
       {/* Header */}
@@ -163,12 +182,19 @@ export default function PsvPage() {
         />
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center py-8">
+          <Spinner size="lg" />
+        </div>
+      )}
+
       {/* Task List or Task Detail */}
-      {!selectedTask ? (
+      {!isLoading && !selectedTask ? (
         // Task List View
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {classTasks.map((task) => {
-            const taskEvidence = psvEvidence.filter((e) => e.tugasanId === task.id);
+            const taskEvidence = psvEvidence.filter((e) => e.tugasan_id === task.id);
             const submittedCount = taskEvidence.filter((e) => e.status === "Sudah Hantar").length;
             const reviewedCount = taskEvidence.filter((e) => e.status === "Dinilai").length;
             const pendingReview = submittedCount; // Waiting to be reviewed
@@ -183,7 +209,7 @@ export default function PsvPage() {
                 <h3 className="font-bold text-lg text-gray-900">{task.nama}</h3>
                 <div className="flex items-center gap-2 text-sm text-gray-500 mt-2 mb-4">
                   <Calendar className="w-4 h-4" />
-                  <span>Tarikh Akhir: {formatDate(task.tarikhAkhir)}</span>
+                  <span>Tarikh Akhir: {formatDate(task.tarikh_akhir)}</span>
                 </div>
 
                 {/* Progress bars */}
@@ -192,7 +218,7 @@ export default function PsvPage() {
                     <div className="flex-1 bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full transition-all"
-                        style={{ width: `${(reviewedCount / classStudents.length) * 100}%` }}
+                        style={{ width: `${classStudents.length > 0 ? (reviewedCount / classStudents.length) * 100 : 0}%` }}
                       />
                     </div>
                     <span className="text-xs text-green-600 w-16 text-right">{reviewedCount} semak</span>
@@ -201,7 +227,7 @@ export default function PsvPage() {
                     <div className="flex-1 bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-blue-500 h-2 rounded-full transition-all"
-                        style={{ width: `${(submittedCount / classStudents.length) * 100}%` }}
+                        style={{ width: `${classStudents.length > 0 ? (submittedCount / classStudents.length) * 100 : 0}%` }}
                       />
                     </div>
                     <span className="text-xs text-blue-600 w-16 text-right">{submittedCount} hantar</span>
@@ -232,7 +258,7 @@ export default function PsvPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : !isLoading && selectedTask ? (
         // Task Detail View
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -285,7 +311,7 @@ export default function PsvPage() {
               <div>
                 <h3 className="font-bold text-lg">{selectedTask.nama}</h3>
                 <p className="text-sm text-gray-500">
-                  Tarikh Akhir: {formatDate(selectedTask.tarikhAkhir)}
+                  Tarikh Akhir: {formatDate(selectedTask.tarikh_akhir)}
                 </p>
               </div>
               <Badge variant="info">
@@ -298,8 +324,8 @@ export default function PsvPage() {
               {filteredStudents.map((student) => {
                 const evidence = getEvidence(student.id, selectedTask.id);
                 const status = evidence?.status || "Belum Hantar";
-                const hasImage = !!evidence?.gambarBukti;
-                const hasLink = !!evidence?.linkBukti;
+                const hasImage = !!evidence?.gambar_url;
+                const hasLink = !!evidence?.link_bukti;
                 const hasEvidence = hasImage || hasLink;
                 const isReviewed = status === "Dinilai";
                 const isSubmitted = status === "Sudah Hantar";
@@ -356,10 +382,10 @@ export default function PsvPage() {
                         {hasImage && (
                           <div
                             className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 cursor-pointer group flex-shrink-0"
-                            onClick={() => setPreviewImage({ nama: student.nama, src: evidence.gambarBukti! })}
+                            onClick={() => setPreviewImage({ nama: student.nama, src: evidence.gambar_url! })}
                           >
                             <img
-                              src={evidence.gambarBukti}
+                              src={evidence.gambar_url}
                               alt="Bukti"
                               className="w-full h-full object-cover"
                             />
@@ -373,7 +399,7 @@ export default function PsvPage() {
                           {/* Link */}
                           {hasLink && (
                             <a
-                              href={evidence.linkBukti}
+                              href={evidence.link_bukti}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mb-2"
@@ -437,7 +463,7 @@ export default function PsvPage() {
             </ul>
           </Card>
         </div>
-      )}
+      ) : null}
 
       {/* New Task Modal */}
       <Modal
