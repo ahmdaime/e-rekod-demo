@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Button, Input, Spinner } from "@/components/ui";
-import { formatIcNumber } from "@/lib/utils";
 import { useStudents } from "@/hooks/useSupabase";
 import { User, Search } from "lucide-react";
 
@@ -15,10 +14,11 @@ export default function AnakLoginPage() {
   const [error, setError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
-  // Handle IC input with formatting
+  // Handle IC input - accept with or without dashes
   const handleIcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatIcNumber(e.target.value);
-    setInputIc(formatted);
+    // Only allow digits and dashes
+    const value = e.target.value.replace(/[^\d-]/g, "");
+    setInputIc(value);
     setError("");
   };
 
@@ -56,7 +56,7 @@ export default function AnakLoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Input
-              placeholder="Contoh: 170523-14-1234"
+              placeholder="Contoh: 170523141234"
               value={inputIc}
               onChange={handleIcChange}
               className="text-center text-lg tracking-wider font-mono"
@@ -81,7 +81,7 @@ export default function AnakLoginPage() {
         {/* Info Box */}
         <div className="mt-8 bg-blue-50 border border-blue-200 p-4 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>Nota:</strong> Sila masukkan No. Kad Pengenalan anak anda untuk mengakses rekod.
+            <strong>Nota:</strong> Masukkan 12 digit No. KP anak anda (tanpa dash).
             Jika menghadapi masalah, sila hubungi guru kelas.
           </p>
         </div>

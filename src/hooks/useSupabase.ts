@@ -35,10 +35,16 @@ export function useStudents() {
   }, []);
 
   const getStudentByIc = useCallback(async (noKp: string) => {
+    // Normalize IC: remove dashes and format to XXXXXX-XX-XXXX
+    const digits = noKp.replace(/\D/g, "");
+    const formattedIc = digits.length === 12
+      ? `${digits.slice(0, 6)}-${digits.slice(6, 8)}-${digits.slice(8, 12)}`
+      : noKp;
+
     const { data, error } = await supabase
       .from("students")
       .select("*")
-      .eq("no_kp", noKp)
+      .eq("no_kp", formattedIc)
       .single();
 
     if (error) return null;
