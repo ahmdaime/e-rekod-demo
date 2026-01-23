@@ -46,3 +46,8 @@ next-env.d.ts
 
 # Windows reserved files
 nul
+
+# Student data (sensitive)
+students-import.csv
+SENARAI NAMA.csv
+*.xlsx
