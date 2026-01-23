@@ -170,7 +170,7 @@ export default function AnakDashboardPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{student.nama}</h1>
               <p className="text-gray-600">
-                {student.kelas} • {student.no_kp}
+                {student.kelas}
               </p>
             </div>
           </div>

@@ -78,35 +78,12 @@ export default function AnakLoginPage() {
           </Button>
         </form>
 
-        {/* Demo IDs */}
-        <div className="mt-8 bg-gray-50 p-4 rounded-lg">
-          <p className="font-bold text-sm text-gray-700 mb-2">Contoh No. KP:</p>
-          <ul className="text-xs text-gray-500 space-y-1">
-            <li
-              className="cursor-pointer hover:text-blue-600"
-              onClick={() => setInputIc("170523-14-1234")}
-            >
-              • 170523-14-1234 (Ahmad bin Abu - 6 Topaz)
-            </li>
-            <li
-              className="cursor-pointer hover:text-blue-600"
-              onClick={() => setInputIc("170812-10-5678")}
-            >
-              • 170812-10-5678 (Siti Aminah - 6 Ruby)
-            </li>
-            <li
-              className="cursor-pointer hover:text-blue-600"
-              onClick={() => setInputIc("170115-01-9012")}
-            >
-              • 170115-01-9012 (Muhammad Haziq - 6 Pearl)
-            </li>
-            <li
-              className="cursor-pointer hover:text-blue-600"
-              onClick={() => setInputIc("150303-14-3456")}
-            >
-              • 150303-14-3456 (Nur Aisyah - 3 Pearl)
-            </li>
-          </ul>
+        {/* Info Box */}
+        <div className="mt-8 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Nota:</strong> Sila masukkan No. Kad Pengenalan anak anda untuk mengakses rekod.
+            Jika menghadapi masalah, sila hubungi guru kelas.
+          </p>
         </div>
 
         {/* Privacy Notice */}
