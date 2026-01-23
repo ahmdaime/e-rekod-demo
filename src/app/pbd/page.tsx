@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, Select, Breadcrumb, EmptyState, Spinner } from "@/components/ui";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {
   useStudents,
   usePbdRecords,
@@ -183,25 +184,34 @@ export default function PbdPage() {
   // Export to Excel
   const handleExport = () => {
     try {
-      // Convert to format expected by export function
+      // Convert to format expected by export function (camelCase types)
       const studentsForExport = filteredStudents.map(s => ({
-        ...s,
-        noKp: s.no_kp, // Map for backwards compatibility
+        id: s.id,
+        nama: s.nama,
+        noKp: s.no_kp,
+        kelas: s.kelas,
+        tahun: s.tahun,
       }));
 
       const assessmentsForExport = availableAssessments.map(a => ({
         id: a.id,
         subjek: a.subjek,
         nama: a.nama,
-        tajuk: a.tajuk,
-        standardKandungan: a.standard_kandungan,
+        tajuk: a.tajuk ?? undefined,
+        standardKandungan: a.standard_kandungan ?? undefined,
       }));
 
       const pbdRecordsForExport = filteredPbdRecords.map(r => ({
-        ...r,
+        id: r.id,
         muridId: r.murid_id,
+        subjek: r.subjek,
+        kelas: r.kelas,
         pentaksiranId: r.pentaksiran_id,
         tahunAkademik: r.tahun_akademik,
+        semester: r.semester,
+        tp: r.tp as 1 | 2 | 3 | 4 | 5 | 6 | null,
+        catatan: r.catatan,
+        updatedAt: r.updated_at,
       }));
 
       exportPbdToExcel({
@@ -233,17 +243,18 @@ export default function PbdPage() {
   const isLoading = studentsLoading || pbdLoading || assessmentsLoading;
 
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-6">
-      {/* Toast */}
-      {toastMessage && (
-        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
-          toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
-        } text-white`}>
-          {toastMessage.text}
-        </div>
-      )}
+    <ProtectedRoute>
+      <div className="p-4 max-w-7xl mx-auto space-y-6">
+        {/* Toast */}
+        {toastMessage && (
+          <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+            toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
+          } text-white`}>
+            {toastMessage.text}
+          </div>
+        )}
 
-      <Breadcrumb items={[{ label: "Rekod PBD" }]} />
+        <Breadcrumb items={[{ label: "Rekod PBD" }]} />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -809,5 +820,6 @@ export default function PbdPage() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }

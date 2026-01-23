@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Toast } from "@/components/ui/Toast";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export const metadata: Metadata = {
   title: "Sistem Rekod PBD & Sahsiah",
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="ms">
       <body className="min-h-screen bg-gray-50 text-gray-900">
-        <Navbar />
-        <main>{children}</main>
-        <Toast />
+        <AuthProvider>
+          <Navbar />
+          <main>{children}</main>
+          <Toast />
+        </AuthProvider>
       </body>
     </html>
   );

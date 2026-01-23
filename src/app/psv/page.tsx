@@ -12,6 +12,7 @@ import {
   EmptyState,
   Spinner,
 } from "@/components/ui";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {
   useStudents,
   usePsvTasks,
@@ -137,17 +138,18 @@ export default function PsvPage() {
   const isLoading = studentsLoading || tasksLoading || evidenceLoading;
 
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-6">
-      {/* Toast */}
-      {toastMessage && (
-        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
-          toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
-        } text-white`}>
-          {toastMessage.text}
-        </div>
-      )}
+    <ProtectedRoute>
+      <div className="p-4 max-w-7xl mx-auto space-y-6">
+        {/* Toast */}
+        {toastMessage && (
+          <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+            toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
+          } text-white`}>
+            {toastMessage.text}
+          </div>
+        )}
 
-      <Breadcrumb items={[{ label: "Bukti PSV" }]} />
+        <Breadcrumb items={[{ label: "Bukti PSV" }]} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -523,5 +525,6 @@ export default function PsvPage() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }

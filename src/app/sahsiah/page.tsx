@@ -10,6 +10,7 @@ import {
   Textarea,
   Spinner,
 } from "@/components/ui";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {
   useStudents,
   useBehaviorEvents,
@@ -164,17 +165,18 @@ export default function SahsiahPage() {
   const isLoading = studentsLoading || eventsLoading;
 
   return (
-    <div className="p-4 max-w-7xl mx-auto">
-      {/* Toast */}
-      {toastMessage && (
-        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
-          toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
-        } text-white`}>
-          {toastMessage.text}
-        </div>
-      )}
+    <ProtectedRoute>
+      <div className="p-4 max-w-7xl mx-auto">
+        {/* Toast */}
+        {toastMessage && (
+          <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${
+            toastMessage.type === "success" ? "bg-green-500" : "bg-red-500"
+          } text-white`}>
+            {toastMessage.text}
+          </div>
+        )}
 
-      <Breadcrumb items={[{ label: "Rekod Token" }]} />
+        <Breadcrumb items={[{ label: "Rekod Token" }]} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Panel: Controls */}
@@ -483,5 +485,6 @@ export default function SahsiahPage() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

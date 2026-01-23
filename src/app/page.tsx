@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Card, Spinner } from "@/components/ui";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { CLASS_SUBJECT_MAP } from "@/types";
 import { isToday } from "@/lib/utils";
 import { usePbdRecords, useBehaviorEvents, useAppSettings } from "@/hooks/useSupabase";
@@ -51,16 +52,17 @@ export default function DashboardPage() {
   const isLoading = pbdLoading || eventsLoading || settingsLoading;
 
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-6">
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          {toastMessage}
-        </div>
-      )}
+    <ProtectedRoute>
+      <div className="p-4 max-w-7xl mx-auto space-y-6">
+        {/* Toast */}
+        {toastMessage && (
+          <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+            {toastMessage}
+          </div>
+        )}
 
-      {/* Header */}
-      <header className="mb-6">
+        {/* Header */}
+        <header className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
           Selamat Kembali, Cikgu!
         </h1>
@@ -245,13 +247,14 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-      {/* Database Status */}
-      <div className="pt-4 border-t border-gray-200">
-        <p className="text-xs text-gray-400 flex items-center gap-2">
-          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-          Disambung ke Supabase
-        </p>
+        {/* Database Status */}
+        <div className="pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-400 flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+            Disambung ke Supabase
+          </p>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

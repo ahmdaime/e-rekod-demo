@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuthContext } from "@/contexts/AuthContext";
 import {
   Menu,
   X,
@@ -14,6 +15,7 @@ import {
   Users,
   ChevronLeft,
   LogOut,
+  LogIn,
 } from "lucide-react";
 
 const teacherNavLinks = [
@@ -25,8 +27,15 @@ const teacherNavLinks = [
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated, signOut, loading } = useAuthContext();
   const [isOpen, setIsOpen] = useState(false);
   const isParentPortal = pathname.startsWith("/parent");
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/login");
+  };
 
   // Parent Portal Navbar
   if (isParentPortal) {
@@ -107,6 +116,26 @@ export const Navbar: React.FC = () => {
               <Users className="w-4 h-4" />
               Portal Ibu Bapa
             </Link>
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+            {!loading && (
+              isAuthenticated ? (
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log Keluar
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-green-600 bg-green-50 hover:bg-green-100 flex items-center gap-2 transition-colors"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Log Masuk
+                </Link>
+              )
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -157,6 +186,30 @@ export const Navbar: React.FC = () => {
               <Users className="w-5 h-5" />
               Portal Ibu Bapa
             </Link>
+            <div className="border-t border-gray-100 my-2" />
+            {!loading && (
+              isAuthenticated ? (
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full px-3 py-3 rounded-lg text-base font-medium text-red-600 bg-red-50 flex items-center gap-3"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Log Keluar
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="block px-3 py-3 rounded-lg text-base font-medium text-green-600 bg-green-50 flex items-center gap-3"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Log Masuk
+                </Link>
+              )
+            )}
           </div>
         </div>
       )}
