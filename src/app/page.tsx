@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui";
-import { useAppStore } from "@/store";
+import { Card, Spinner } from "@/components/ui";
 import { CLASS_SUBJECT_MAP } from "@/types";
 import { isToday } from "@/lib/utils";
+import { usePbdRecords, useBehaviorEvents, useAppSettings } from "@/hooks/useSupabase";
 import {
   FileText,
   Image,
@@ -13,31 +13,52 @@ import {
   Users,
   ClipboardList,
   Activity,
-  RefreshCw,
   Settings,
   Eye,
   EyeOff,
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { pbdRecords, behaviorEvents, resetData, showToast, settings, togglePbdVisibility } = useAppStore();
+  const { pbdRecords, loading: pbdLoading } = usePbdRecords();
+  const { behaviorEvents, loading: eventsLoading } = useBehaviorEvents();
+  const { pbdVisibleToParents, loading: settingsLoading, togglePbdVisibility } = useAppSettings();
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Calculate today's stats
-  const todayPbdCount = pbdRecords.filter((r) => isToday(r.updatedAt)).length;
+  const todayPbdCount = pbdRecords.filter((r) => isToday(r.updated_at)).length;
   const todayEventCount = behaviorEvents.filter((e) => isToday(e.timestamp)).length;
   const todayPositifCount = behaviorEvents.filter(
     (e) => isToday(e.timestamp) && e.kategori === "Positif"
   ).length;
 
-  const handleReset = () => {
-    if (window.confirm("Reset semua data demo kepada asal?")) {
-      resetData();
-      showToast("Data telah direset", "success");
+  const handleTogglePbd = async () => {
+    const { error } = await togglePbdVisibility();
+    if (!error) {
+      showToast(
+        pbdVisibleToParents
+          ? "Paparan PBD telah ditutup"
+          : "Paparan PBD telah dibuka"
+      );
     }
   };
 
+  const isLoading = pbdLoading || eventsLoading || settingsLoading;
+
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-6">
+      {/* Toast */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          {toastMessage}
+        </div>
+      )}
+
       {/* Header */}
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
@@ -113,7 +134,11 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-sm text-gray-500">Rekod PBD Hari Ini</p>
-            <p className="text-2xl font-bold text-gray-900">{todayPbdCount}</p>
+            {isLoading ? (
+              <Spinner size="sm" />
+            ) : (
+              <p className="text-2xl font-bold text-gray-900">{todayPbdCount}</p>
+            )}
           </div>
         </Card>
 
@@ -123,7 +148,11 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-sm text-gray-500">Rekod Token Hari Ini</p>
-            <p className="text-2xl font-bold text-gray-900">{todayEventCount}</p>
+            {isLoading ? (
+              <Spinner size="sm" />
+            ) : (
+              <p className="text-2xl font-bold text-gray-900">{todayEventCount}</p>
+            )}
           </div>
         </Card>
 
@@ -133,7 +162,11 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-sm text-gray-500">Token Positif Hari Ini</p>
-            <p className="text-2xl font-bold text-gray-900">{todayPositifCount}</p>
+            {isLoading ? (
+              <Spinner size="sm" />
+            ) : (
+              <p className="text-2xl font-bold text-gray-900">{todayPositifCount}</p>
+            )}
           </div>
         </Card>
       </div>
@@ -177,7 +210,7 @@ export default function DashboardPage() {
           {/* PBD Visibility Toggle */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
             <div className="flex items-center gap-3">
-              {settings.pbdVisibleToParents ? (
+              {pbdVisibleToParents ? (
                 <div className="p-2 bg-green-100 rounded-full text-green-600">
                   <Eye className="w-5 h-5" />
                 </div>
@@ -189,29 +222,22 @@ export default function DashboardPage() {
               <div>
                 <p className="font-medium text-gray-800">Paparan PBD kepada Ibu Bapa</p>
                 <p className="text-sm text-gray-500">
-                  {settings.pbdVisibleToParents
+                  {pbdVisibleToParents
                     ? "Ibu bapa boleh lihat rekod PBD anak mereka"
                     : "Rekod PBD disembunyikan daripada ibu bapa"}
                 </p>
               </div>
             </div>
             <button
-              onClick={() => {
-                togglePbdVisibility();
-                showToast(
-                  settings.pbdVisibleToParents
-                    ? "Paparan PBD telah ditutup"
-                    : "Paparan PBD telah dibuka",
-                  "success"
-                );
-              }}
+              onClick={handleTogglePbd}
+              disabled={settingsLoading}
               className={`relative w-14 h-7 rounded-full transition-colors ${
-                settings.pbdVisibleToParents ? "bg-green-500" : "bg-gray-300"
-              }`}
+                pbdVisibleToParents ? "bg-green-500" : "bg-gray-300"
+              } ${settingsLoading ? "opacity-50" : ""}`}
             >
               <span
                 className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
-                  settings.pbdVisibleToParents ? "translate-x-8" : "translate-x-1"
+                  pbdVisibleToParents ? "translate-x-8" : "translate-x-1"
                 }`}
               />
             </button>
@@ -219,15 +245,12 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-      {/* Reset Button */}
+      {/* Database Status */}
       <div className="pt-4 border-t border-gray-200">
-        <button
-          onClick={handleReset}
-          className="text-sm text-gray-400 hover:text-red-500 flex items-center gap-1 transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Set Semula Data
-        </button>
+        <p className="text-xs text-gray-400 flex items-center gap-2">
+          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+          Disambung ke Supabase
+        </p>
       </div>
     </div>
   );

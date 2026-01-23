@@ -2,17 +2,18 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAppStore } from "@/store";
-import { Card, Button, Input } from "@/components/ui";
+import { Card, Button, Input, Spinner } from "@/components/ui";
 import { formatIcNumber } from "@/lib/utils";
+import { useStudents } from "@/hooks/useSupabase";
 import { User, Search } from "lucide-react";
 
 export default function AnakLoginPage() {
   const router = useRouter();
-  const { students } = useAppStore();
+  const { getStudentByIc } = useStudents();
 
   const [inputIc, setInputIc] = useState("");
   const [error, setError] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
   // Handle IC input with formatting
   const handleIcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,14 +23,18 @@ export default function AnakLoginPage() {
   };
 
   // Handle form submit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSearching(true);
+    setError("");
 
-    const student = students.find((s) => s.noKp === inputIc);
+    const student = await getStudentByIc(inputIc);
+
     if (student) {
       router.push(`/parent/anak/${encodeURIComponent(inputIc)}`);
     } else {
       setError("No KP tidak dijumpai. Sila semak semula.");
+      setIsSearching(false);
     }
   };
 
@@ -58,10 +63,18 @@ export default function AnakLoginPage() {
               maxLength={14}
               icon={Search}
               error={error}
+              disabled={isSearching}
             />
           </div>
-          <Button type="submit" className="w-full" size="lg">
-            Lihat Rekod
+          <Button type="submit" className="w-full" size="lg" disabled={isSearching}>
+            {isSearching ? (
+              <span className="flex items-center justify-center gap-2">
+                <Spinner size="sm" />
+                Mencari...
+              </span>
+            ) : (
+              "Lihat Rekod"
+            )}
           </Button>
         </form>
 
