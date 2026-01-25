@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Card, Spinner } from "@/components/ui";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { CLASS_SUBJECT_MAP } from "@/types";
+import { CLASS_SUBJECT_MAP, ALL_CLASSES } from "@/types";
 import { isToday } from "@/lib/utils";
 import { usePbdRecords, useBehaviorEvents, useAppSettings } from "@/hooks/useSupabase";
 import {
@@ -17,14 +17,23 @@ import {
   Settings,
   Eye,
   EyeOff,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { pbdRecords, loading: pbdLoading } = usePbdRecords();
-  const { behaviorEvents, loading: eventsLoading } = useBehaviorEvents();
+  const { pbdRecords, loading: pbdLoading, resetPbdByClass } = usePbdRecords();
+  const { behaviorEvents, loading: eventsLoading, resetEventsByClass } = useBehaviorEvents();
   const { pbdVisibleToParents, loading: settingsLoading, togglePbdVisibility } = useAppSettings();
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Reset data states
+  const [resetClass, setResetClass] = useState<string>("");
+  const [resetType, setResetType] = useState<"pbd" | "token" | "both">("pbd");
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -46,6 +55,80 @@ export default function DashboardPage() {
           ? "Paparan PBD telah ditutup"
           : "Paparan PBD telah dibuka"
       );
+    }
+  };
+
+  // Count records by class
+  const pbdCountByClass = useMemo(() => {
+    if (!resetClass) return 0;
+    return pbdRecords.filter((r) => r.kelas === resetClass).length;
+  }, [pbdRecords, resetClass]);
+
+  const tokenCountByClass = useMemo(() => {
+    if (!resetClass) return 0;
+    return behaviorEvents.filter((e) => e.kelas === resetClass).length;
+  }, [behaviorEvents, resetClass]);
+
+  const totalCountToDelete = useMemo(() => {
+    if (resetType === "pbd") return pbdCountByClass;
+    if (resetType === "token") return tokenCountByClass;
+    return pbdCountByClass + tokenCountByClass;
+  }, [resetType, pbdCountByClass, tokenCountByClass]);
+
+  const handleOpenResetModal = () => {
+    if (!resetClass) {
+      showToast("Sila pilih kelas terlebih dahulu");
+      return;
+    }
+    if (totalCountToDelete === 0) {
+      showToast("Tiada rekod untuk dipadam");
+      return;
+    }
+    setShowResetModal(true);
+    setConfirmText("");
+  };
+
+  const handleCloseResetModal = () => {
+    setShowResetModal(false);
+    setConfirmText("");
+  };
+
+  const handleResetData = async () => {
+    if (confirmText !== resetClass) return;
+
+    setIsResetting(true);
+    let pbdDeleted = 0;
+    let tokenDeleted = 0;
+
+    try {
+      if (resetType === "pbd" || resetType === "both") {
+        const result = await resetPbdByClass(resetClass);
+        if (result.error) {
+          showToast(`Ralat: ${result.error.message}`);
+          return;
+        }
+        pbdDeleted = result.deletedCount;
+      }
+
+      if (resetType === "token" || resetType === "both") {
+        const result = await resetEventsByClass(resetClass);
+        if (result.error) {
+          showToast(`Ralat: ${result.error.message}`);
+          return;
+        }
+        tokenDeleted = result.deletedCount;
+      }
+
+      const messages = [];
+      if (pbdDeleted > 0) messages.push(`${pbdDeleted} rekod PBD`);
+      if (tokenDeleted > 0) messages.push(`${tokenDeleted} rekod token`);
+      showToast(`Berjaya memadam ${messages.join(" dan ")} untuk kelas ${resetClass}`);
+
+      setShowResetModal(false);
+      setConfirmText("");
+      setResetClass("");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -244,8 +327,181 @@ export default function DashboardPage() {
               />
             </button>
           </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="font-medium text-red-700 flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-4 h-4" />
+              Reset Data (Bahaya)
+            </h3>
+
+            <div className="p-4 bg-red-50 rounded-lg border border-red-100 space-y-4">
+              {/* Class Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pilih Kelas
+                </label>
+                <select
+                  value={resetClass}
+                  onChange={(e) => setResetClass(e.target.value)}
+                  className="w-full md:w-64 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">-- Pilih Kelas --</option>
+                  {ALL_CLASSES.map((kelas) => (
+                    <option key={kelas} value={kelas}>
+                      {kelas}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Data Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Jenis Data
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="resetType"
+                      value="pbd"
+                      checked={resetType === "pbd"}
+                      onChange={() => setResetType("pbd")}
+                      className="text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-gray-700">
+                      Rekod PBD sahaja
+                      {resetClass && (
+                        <span className="text-gray-500 ml-1">
+                          ({pbdCountByClass} rekod)
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="resetType"
+                      value="token"
+                      checked={resetType === "token"}
+                      onChange={() => setResetType("token")}
+                      className="text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-gray-700">
+                      Rekod Token sahaja
+                      {resetClass && (
+                        <span className="text-gray-500 ml-1">
+                          ({tokenCountByClass} rekod)
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="resetType"
+                      value="both"
+                      checked={resetType === "both"}
+                      onChange={() => setResetType("both")}
+                      className="text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-gray-700">
+                      Kedua-dua sekali
+                      {resetClass && (
+                        <span className="text-gray-500 ml-1">
+                          ({pbdCountByClass + tokenCountByClass} rekod)
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Reset Button */}
+              <button
+                onClick={handleOpenResetModal}
+                disabled={!resetClass || totalCountToDelete === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Reset Data
+              </button>
+            </div>
+          </div>
         </div>
       </Card>
+
+      {/* Reset Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <AlertTriangle className="w-8 h-8" />
+              <h3 className="text-lg font-bold">AMARAN: Operasi ini tidak boleh dibatalkan!</h3>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-gray-700 mb-2">Anda akan memadam:</p>
+              <ul className="list-disc list-inside text-gray-800 space-y-1">
+                {(resetType === "pbd" || resetType === "both") && (
+                  <li>
+                    <strong>{pbdCountByClass}</strong> rekod PBD untuk kelas{" "}
+                    <strong>{resetClass}</strong>
+                  </li>
+                )}
+                {(resetType === "token" || resetType === "both") && (
+                  <li>
+                    <strong>{tokenCountByClass}</strong> rekod token untuk kelas{" "}
+                    <strong>{resetClass}</strong>
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Taip &quot;<strong>{resetClass}</strong>&quot; untuk sahkan:
+              </label>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={resetClass}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleCloseResetModal}
+                disabled={isResetting}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleResetData}
+                disabled={confirmText !== resetClass || isResetting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isResetting ? (
+                  <>
+                    <Spinner size="sm" />
+                    Memadam...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Padam Sekarang
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* Database Status */}
         <div className="pt-4 border-t border-gray-200">

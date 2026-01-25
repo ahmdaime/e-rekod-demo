@@ -197,11 +197,26 @@ export function usePbdRecords() {
     [fetchPbdRecords]
   );
 
+  const resetPbdByClass = useCallback(
+    async (kelas: string) => {
+      const { error, count } = await supabase
+        .from("pbd_records")
+        .delete({ count: "exact" })
+        .eq("kelas", kelas);
+
+      if (!error) {
+        await fetchPbdRecords();
+      }
+      return { error, deletedCount: count ?? 0 };
+    },
+    [fetchPbdRecords]
+  );
+
   useEffect(() => {
     fetchPbdRecords();
   }, [fetchPbdRecords]);
 
-  return { pbdRecords, loading, fetchPbdRecords, getPbdByStudent, upsertPbdRecord, batchUpsertPbd };
+  return { pbdRecords, loading, fetchPbdRecords, getPbdByStudent, upsertPbdRecord, batchUpsertPbd, resetPbdByClass };
 }
 
 // ============================================
@@ -269,6 +284,21 @@ export function useBehaviorEvents() {
     return { error };
   }, []);
 
+  const resetEventsByClass = useCallback(
+    async (kelas: string) => {
+      const { error, count } = await supabase
+        .from("behavior_events")
+        .delete({ count: "exact" })
+        .eq("kelas", kelas);
+
+      if (!error) {
+        await fetchBehaviorEvents();
+      }
+      return { error, deletedCount: count ?? 0 };
+    },
+    [fetchBehaviorEvents]
+  );
+
   useEffect(() => {
     fetchBehaviorEvents();
   }, [fetchBehaviorEvents]);
@@ -281,6 +311,7 @@ export function useBehaviorEvents() {
     getEventsByStudent,
     addEvent,
     deleteEvent,
+    resetEventsByClass,
   };
 }
 
