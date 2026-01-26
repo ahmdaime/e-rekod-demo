@@ -23,7 +23,7 @@ import {
   getTokenValue,
 } from "@/types";
 import { formatTime, isToday, isThisWeek, isThisMonth } from "@/lib/utils";
-import { Trash2, Clock, TrendingUp, TrendingDown, CheckSquare, Square, Users, Search } from "lucide-react";
+import { Trash2, Clock, TrendingUp, TrendingDown, CheckSquare, Square, Users, Search, Zap } from "lucide-react";
 
 type DateFilter = "today" | "week" | "month" | "all";
 
@@ -40,6 +40,21 @@ export default function SahsiahPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // Toggle Mode state
+  const [isToggleMode, setIsToggleMode] = useState<boolean>(false);
+  const [studentTokenStatus, setStudentTokenStatus] = useState<Map<string, 'none' | 'positive' | 'negative'>>(new Map());
+  const [selectedPositiveEvent, setSelectedPositiveEvent] = useState<string>("Bagus");
+  const [selectedNegativeEvent, setSelectedNegativeEvent] = useState<string>("Tidak siap kerja sekolah");
+
+  // Custom Event state
+  const [customPositiveEvent, setCustomPositiveEvent] = useState<string>("");
+  const [customPositiveToken, setCustomPositiveToken] = useState<number>(1);
+  const [customNegativeEvent, setCustomNegativeEvent] = useState<string>("");
+  const [customNegativeToken, setCustomNegativeToken] = useState<number>(1);
+
+  // Kekalkan catatan state
+  const [keepCatatan, setKeepCatatan] = useState<boolean>(false);
 
   // Toast helper
   const showToast = (text: string, type: "success" | "error" = "success") => {
@@ -84,6 +99,148 @@ export default function SahsiahPage() {
   // Handle deselect all
   const handleDeselectAll = () => {
     setSelectedStudentIds(new Set());
+  };
+
+  // Toggle Mode: Tandakan semua murid sebagai positif
+  const handleMarkAllPositive = () => {
+    const newStatus = new Map<string, 'none' | 'positive' | 'negative'>();
+    classStudents.forEach(student => {
+      newStatus.set(student.id, 'positive');
+    });
+    setStudentTokenStatus(newStatus);
+  };
+
+  // Toggle Mode: Reset semua status
+  const handleClearAllStatus = () => {
+    setStudentTokenStatus(new Map());
+  };
+
+  // Toggle Mode: Tukar status murid (positive → negative → none → positive)
+  const handleToggleStudentStatus = (studentId: string) => {
+    const newStatus = new Map(studentTokenStatus);
+    const current = newStatus.get(studentId) || 'none';
+
+    if (current === 'none') {
+      newStatus.set(studentId, 'positive');
+    } else if (current === 'positive') {
+      newStatus.set(studentId, 'negative');
+    } else {
+      newStatus.set(studentId, 'none');
+    }
+
+    setStudentTokenStatus(newStatus);
+  };
+
+  // Toggle Mode: Simpan semua token sekaligus
+  const handleSaveAllTokens = async () => {
+    const hasAnyStatus = Array.from(studentTokenStatus.values()).some(s => s !== 'none');
+    if (!hasAnyStatus) {
+      showToast("Sila tandakan sekurang-kurangnya seorang murid", "error");
+      return;
+    }
+
+    // Validate custom events jika dipilih
+    const isCustomPositive = selectedPositiveEvent === "__custom__";
+    const isCustomNegative = selectedNegativeEvent === "__custom__";
+
+    if (isCustomPositive && !customPositiveEvent.trim()) {
+      showToast("Sila masukkan nama event positif", "error");
+      return;
+    }
+    if (isCustomNegative && !customNegativeEvent.trim()) {
+      showToast("Sila masukkan nama event negatif", "error");
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const promises: Promise<unknown>[] = [];
+
+    const positivePreset = positifEvents.find(e => e.label === selectedPositiveEvent);
+    const negativePreset = negatifEvents.find(e => e.label === selectedNegativeEvent);
+
+    studentTokenStatus.forEach((status, studentId) => {
+      const student = classStudents.find(s => s.id === studentId);
+      if (!student || status === 'none') return;
+
+      if (status === 'positive') {
+        // Handle positive event (preset atau custom)
+        if (isCustomPositive) {
+          // Custom positive event
+          const tokenSeverity: Severity = customPositiveToken === 1 ? "Low" : customPositiveToken === 3 ? "Medium" : "High";
+          promises.push(addEvent({
+            murid_id: student.id,
+            nama_murid: student.nama,
+            kelas: student.kelas,
+            jenis: customPositiveEvent.trim(),
+            kategori: "Positif",
+            severity: tokenSeverity,
+            catatan: catatan,
+            timestamp: timestamp,
+            is_public: true,
+          }));
+        } else if (positivePreset) {
+          // Preset positive event
+          promises.push(addEvent({
+            murid_id: student.id,
+            nama_murid: student.nama,
+            kelas: student.kelas,
+            jenis: positivePreset.label,
+            kategori: positivePreset.kategori,
+            severity: positivePreset.defaultSeverity || "Low",
+            catatan: catatan,
+            timestamp: timestamp,
+            is_public: positivePreset.isPublic,
+          }));
+        }
+      } else if (status === 'negative') {
+        // Handle negative event (preset atau custom)
+        if (isCustomNegative) {
+          // Custom negative event
+          const tokenSeverity: Severity = customNegativeToken === 1 ? "Low" : customNegativeToken === 3 ? "Medium" : "High";
+          promises.push(addEvent({
+            murid_id: student.id,
+            nama_murid: student.nama,
+            kelas: student.kelas,
+            jenis: customNegativeEvent.trim(),
+            kategori: "Negatif",
+            severity: tokenSeverity,
+            catatan: catatan,
+            timestamp: timestamp,
+            is_public: true,
+          }));
+        } else if (negativePreset) {
+          // Preset negative event
+          promises.push(addEvent({
+            murid_id: student.id,
+            nama_murid: student.nama,
+            kelas: student.kelas,
+            jenis: negativePreset.label,
+            kategori: negativePreset.kategori,
+            severity: severity,
+            catatan: catatan,
+            timestamp: timestamp,
+            is_public: negativePreset.isPublic,
+          }));
+        }
+      }
+    });
+
+    await Promise.all(promises);
+
+    // Kira jumlah
+    let positiveCount = 0, negativeCount = 0;
+    studentTokenStatus.forEach(status => {
+      if (status === 'positive') positiveCount++;
+      if (status === 'negative') negativeCount++;
+    });
+
+    showToast(`Disimpan: ${positiveCount} positif, ${negativeCount} negatif`, "success");
+
+    // Reset
+    setStudentTokenStatus(new Map());
+    if (!keepCatatan) {
+      setCatatan("");
+    }
   };
 
   // Handle toggle student
@@ -136,7 +293,9 @@ export default function SahsiahPage() {
       `${tokenDisplay} token untuk ${selectedStudentIds.size} murid (${preset.label})`,
       tokenValue > 0 ? "success" : "error"
     );
-    setCatatan("");
+    if (!keepCatatan) {
+      setCatatan("");
+    }
   };
 
   // Handle delete event
@@ -152,6 +311,8 @@ export default function SahsiahPage() {
     setSelectedClass(newClass);
     setSelectedStudentIds(new Set());
     setSearchQuery("");
+    // Reset toggle mode state juga
+    setStudentTokenStatus(new Map());
   };
 
   // Positif events
@@ -211,31 +372,178 @@ export default function SahsiahPage() {
               />
             </div>
 
+            {/* Toggle Mode Panel */}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-purple-900 flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  Mod Toggle Pantas
+                </h4>
+                <button
+                  onClick={() => setIsToggleMode(!isToggleMode)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    isToggleMode
+                      ? "bg-purple-600 text-white"
+                      : "bg-white border border-purple-300 text-purple-700 hover:bg-purple-100"
+                  }`}
+                >
+                  {isToggleMode ? "Aktif" : "Aktifkan"}
+                </button>
+              </div>
+
+              {isToggleMode && (
+                <>
+                  {/* Butang Tandakan Semua */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleMarkAllPositive}
+                      className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors"
+                    >
+                      Tandakan Semua Positif
+                    </button>
+                    <button
+                      onClick={handleClearAllStatus}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </div>
+
+                  {/* Pilihan Event */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Event Positif */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-green-700 block">Event Positif:</label>
+                      <select
+                        value={selectedPositiveEvent}
+                        onChange={(e) => setSelectedPositiveEvent(e.target.value)}
+                        className="w-full border border-green-300 rounded-lg p-2 text-sm bg-green-50 focus:border-green-500 focus:outline-none"
+                      >
+                        {positifEvents.map(evt => (
+                          <option key={evt.label} value={evt.label}>
+                            {evt.label} (+{TOKEN_VALUES[evt.defaultSeverity || "Low"]})
+                          </option>
+                        ))}
+                        <option value="__custom__">✏️ Custom...</option>
+                      </select>
+                      {selectedPositiveEvent === "__custom__" && (
+                        <div className="space-y-2 p-2 bg-green-100 rounded-lg">
+                          <input
+                            type="text"
+                            placeholder="Nama event (cth: Siap latihan)"
+                            value={customPositiveEvent}
+                            onChange={(e) => setCustomPositiveEvent(e.target.value)}
+                            className="w-full border border-green-300 rounded-lg p-2 text-sm focus:border-green-500 focus:outline-none"
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-green-700">Token:</span>
+                            <select
+                              value={customPositiveToken}
+                              onChange={(e) => setCustomPositiveToken(Number(e.target.value))}
+                              className="flex-1 border border-green-300 rounded-lg p-1.5 text-sm bg-white focus:border-green-500 focus:outline-none"
+                            >
+                              <option value={1}>+1 (Rendah)</option>
+                              <option value={3}>+3 (Sederhana)</option>
+                              <option value={5}>+5 (Tinggi)</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {/* Event Negatif */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-red-700 block">Event Negatif:</label>
+                      <select
+                        value={selectedNegativeEvent}
+                        onChange={(e) => setSelectedNegativeEvent(e.target.value)}
+                        className="w-full border border-red-300 rounded-lg p-2 text-sm bg-red-50 focus:border-red-500 focus:outline-none"
+                      >
+                        {negatifEvents.map(evt => (
+                          <option key={evt.label} value={evt.label}>
+                            {evt.label} (-{TOKEN_VALUES[severity]})
+                          </option>
+                        ))}
+                        <option value="__custom__">✏️ Custom...</option>
+                      </select>
+                      {selectedNegativeEvent === "__custom__" && (
+                        <div className="space-y-2 p-2 bg-red-100 rounded-lg">
+                          <input
+                            type="text"
+                            placeholder="Nama event (cth: Lambat hantar)"
+                            value={customNegativeEvent}
+                            onChange={(e) => setCustomNegativeEvent(e.target.value)}
+                            className="w-full border border-red-300 rounded-lg p-2 text-sm focus:border-red-500 focus:outline-none"
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-red-700">Token:</span>
+                            <select
+                              value={customNegativeToken}
+                              onChange={(e) => setCustomNegativeToken(Number(e.target.value))}
+                              className="flex-1 border border-red-300 rounded-lg p-1.5 text-sm bg-white focus:border-red-500 focus:outline-none"
+                            >
+                              <option value={1}>-1 (Rendah)</option>
+                              <option value={3}>-3 (Sederhana)</option>
+                              <option value={5}>-5 (Tinggi)</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ringkasan & Butang Simpan */}
+                  {Array.from(studentTokenStatus.values()).some(s => s !== 'none') && (
+                    <div className="bg-white rounded-lg p-3 border border-purple-200">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>Positif: <strong className="text-green-600">
+                          {Array.from(studentTokenStatus.values()).filter(s => s === 'positive').length}
+                        </strong></span>
+                        <span>Negatif: <strong className="text-red-600">
+                          {Array.from(studentTokenStatus.values()).filter(s => s === 'negative').length}
+                        </strong></span>
+                      </div>
+                      <button
+                        onClick={handleSaveAllTokens}
+                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold text-lg transition-colors"
+                      >
+                        Simpan Semua Token
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             {/* Student Selection with Checkboxes */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <Users className="w-4 h-4" />
                   Senarai Murid ({classStudents.length} orang)
+                  {isToggleMode && (
+                    <span className="text-xs text-purple-600 font-normal">(Klik untuk tukar status)</span>
+                  )}
                 </label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSelectAll}
-                    className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium transition-colors"
-                  >
-                    Pilih Semua
-                  </button>
-                  <button
-                    onClick={handleDeselectAll}
-                    disabled={!someSelected}
-                    className="text-xs px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 font-medium transition-colors disabled:opacity-50"
-                  >
-                    Nyahpilih
-                  </button>
-                </div>
+                {!isToggleMode && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium transition-colors"
+                    >
+                      Pilih Semua
+                    </button>
+                    <button
+                      onClick={handleDeselectAll}
+                      disabled={!someSelected}
+                      className="text-xs px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 font-medium transition-colors disabled:opacity-50"
+                    >
+                      Nyahpilih
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Student List with Checkboxes */}
+              {/* Student List */}
               {studentsLoading ? (
                 <div className="flex justify-center py-8">
                   <Spinner />
@@ -249,6 +557,48 @@ export default function SahsiahPage() {
                   ) : (
                     classStudents.map((student, index) => {
                       const isSelected = selectedStudentIds.has(student.id);
+                      const tokenStatus = studentTokenStatus.get(student.id) || 'none';
+
+                      // Jika toggle mode aktif, tunjuk UI berbeza
+                      if (isToggleMode) {
+                        return (
+                          <div
+                            key={student.id}
+                            onClick={() => handleToggleStudentStatus(student.id)}
+                            className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
+                              tokenStatus === 'positive'
+                                ? "bg-green-100 border-l-4 border-green-500"
+                                : tokenStatus === 'negative'
+                                ? "bg-red-100 border-l-4 border-red-500"
+                                : "hover:bg-gray-50 border-l-4 border-transparent"
+                            } ${index !== 0 ? "border-t border-gray-100" : ""}`}
+                          >
+                            {tokenStatus === 'positive' ? (
+                              <TrendingUp className="w-5 h-5 text-green-600 flex-shrink-0" />
+                            ) : tokenStatus === 'negative' ? (
+                              <TrendingDown className="w-5 h-5 text-red-600 flex-shrink-0" />
+                            ) : (
+                              <Square className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                            )}
+                            <span className={`text-sm flex-1 ${
+                              tokenStatus === 'positive' ? "font-medium text-green-900"
+                              : tokenStatus === 'negative' ? "font-medium text-red-900"
+                              : "text-gray-700"
+                            }`}>
+                              {student.nama}
+                            </span>
+                            {tokenStatus !== 'none' && (
+                              <span className={`text-xs px-2 py-0.5 rounded ${
+                                tokenStatus === 'positive' ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"
+                              }`}>
+                                {tokenStatus === 'positive' ? 'Positif' : 'Negatif'}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      // Mod biasa (checkbox)
                       return (
                         <div
                           key={student.id}
@@ -281,6 +631,17 @@ export default function SahsiahPage() {
               onChange={(e) => setCatatan(e.target.value)}
               rows={2}
             />
+
+            {/* Checkbox Kekalkan Catatan */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={keepCatatan}
+                onChange={(e) => setKeepCatatan(e.target.checked)}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-600">Kekalkan catatan selepas simpan</span>
+            </label>
           </Card>
 
           {/* Token Actions */}
@@ -360,11 +721,21 @@ export default function SahsiahPage() {
           {/* Quick Tips */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
             <p className="font-medium mb-1">Panduan Pantas:</p>
-            <ol className="list-decimal list-inside space-y-1 text-amber-700">
-              <li>Klik "Pilih Semua" untuk pilih semua murid</li>
-              <li>Klik nama murid yang tak perlu untuk nyahpilih</li>
-              <li>Klik butang token untuk beri kepada semua yang dipilih</li>
-            </ol>
+            {isToggleMode ? (
+              <ol className="list-decimal list-inside space-y-1 text-amber-700">
+                <li>Klik "Tandakan Semua Positif" untuk set semua murid</li>
+                <li>Klik murid untuk tukar status (Positif → Negatif → Kosong)</li>
+                <li>Pilih jenis event positif dan negatif</li>
+                <li>Tekan "Simpan Semua Token"</li>
+              </ol>
+            ) : (
+              <ol className="list-decimal list-inside space-y-1 text-amber-700">
+                <li>Klik "Pilih Semua" untuk pilih semua murid</li>
+                <li>Klik nama murid yang tak perlu untuk nyahpilih</li>
+                <li>Klik butang token untuk beri kepada semua yang dipilih</li>
+                <li><strong>Atau:</strong> Aktifkan "Mod Toggle Pantas" untuk rekod berbeza sekaligus</li>
+              </ol>
+            )}
           </div>
         </div>
 
