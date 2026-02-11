@@ -183,7 +183,7 @@ export default function SahsiahPage() {
     }
 
     const timestamp = new Date().toISOString();
-    const promises: Promise<unknown>[] = [];
+    const promises: Promise<{ error: unknown }>[] = [];
 
     const positivePreset = positifEvents.find(e => e.label === selectedPositiveEvent);
     const negativePreset = negatifEvents.find(e => e.label === selectedNegativeEvent);
@@ -255,21 +255,30 @@ export default function SahsiahPage() {
       }
     });
 
-    await Promise.all(promises);
+    const results = await Promise.all(promises);
+    const failCount = results.filter(r => r.error).length;
+    const successCount = results.length - failCount;
 
-    // Kira jumlah
-    let positiveCount = 0, negativeCount = 0;
-    studentTokenStatus.forEach(status => {
-      if (status === 'positive') positiveCount++;
-      if (status === 'negative') negativeCount++;
-    });
+    if (failCount > 0 && successCount === 0) {
+      showToast(`Gagal menyimpan token. Sila semak sambungan atau login semula.`, "error");
+    } else if (failCount > 0) {
+      showToast(`${successCount} berjaya, ${failCount} gagal disimpan. Sila cuba lagi.`, "error");
+    } else {
+      // Kira jumlah
+      let positiveCount = 0, negativeCount = 0;
+      studentTokenStatus.forEach(status => {
+        if (status === 'positive') positiveCount++;
+        if (status === 'negative') negativeCount++;
+      });
+      showToast(`Disimpan: ${positiveCount} positif, ${negativeCount} negatif`, "success");
+    }
 
-    showToast(`Disimpan: ${positiveCount} positif, ${negativeCount} negatif`, "success");
-
-    // Reset
-    setStudentTokenStatus(new Map());
-    if (!keepCatatan) {
-      setCatatan("");
+    // Reset hanya jika ada yang berjaya
+    if (successCount > 0) {
+      setStudentTokenStatus(new Map());
+      if (!keepCatatan) {
+        setCatatan("");
+      }
     }
   };
 
@@ -299,10 +308,13 @@ export default function SahsiahPage() {
     const timestamp = new Date().toISOString();
 
     // Create events for all selected students
+    let successCount = 0;
+    let failCount = 0;
+
     const promises = Array.from(selectedStudentIds).map(async (studentId) => {
       const student = classStudents.find((s) => s.id === studentId);
       if (student) {
-        await addEvent({
+        const { error } = await addEvent({
           murid_id: student.id,
           nama_murid: student.nama,
           kelas: student.kelas,
@@ -313,16 +325,24 @@ export default function SahsiahPage() {
           timestamp: timestamp,
           is_public: preset.isPublic,
         });
+        if (error) failCount++;
+        else successCount++;
       }
     });
 
     await Promise.all(promises);
 
-    const tokenDisplay = tokenValue > 0 ? `+${tokenValue}` : `${tokenValue}`;
-    showToast(
-      `${tokenDisplay} token untuk ${selectedStudentIds.size} murid (${preset.label})`,
-      tokenValue > 0 ? "success" : "error"
-    );
+    if (failCount > 0 && successCount === 0) {
+      showToast(`Gagal menyimpan token. Sila semak sambungan atau login semula.`, "error");
+    } else if (failCount > 0) {
+      showToast(`${successCount} berjaya, ${failCount} gagal disimpan. Sila cuba lagi.`, "error");
+    } else {
+      const tokenDisplay = tokenValue > 0 ? `+${tokenValue}` : `${tokenValue}`;
+      showToast(
+        `${tokenDisplay} token untuk ${successCount} murid (${preset.label})`,
+        "success"
+      );
+    }
     if (!keepCatatan) {
       setCatatan("");
     }
