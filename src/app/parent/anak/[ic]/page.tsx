@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, Badge, EmptyState, Spinner } from "@/components/ui";
-import { TP_COLORS_LIGHT, SEVERITY_COLORS } from "@/types";
+import { TP_COLORS_LIGHT, SEVERITY_COLORS, getTokenValue } from "@/types";
 import {
   useStudents,
   useBehaviorEvents,
@@ -40,6 +40,7 @@ import {
   Trash2,
   Send,
   CheckCircle2,
+  Coins,
 } from "lucide-react";
 
 type Tab = "sahsiah" | "pbd" | "psv";
@@ -62,7 +63,7 @@ export default function AnakDashboardPage() {
   const [student, setStudent] = useState<Awaited<ReturnType<typeof getStudentByIc>> | null>(null);
   const [studentLoading, setStudentLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("sahsiah");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("month");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -136,8 +137,17 @@ export default function AnakDashboardPage() {
     })
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const positifCount = myEvents.filter((e) => e.kategori === "Positif").length;
-  const negatifCount = myEvents.filter((e) => e.kategori === "Negatif").length;
+  // Kira NILAI TOKEN sebenar, bukan bilangan event sahaja
+  let totalTokenPositif = 0;
+  let totalTokenNegatif = 0;
+  myEvents.forEach((e) => {
+    if (e.severity) {
+      const val = getTokenValue(e.kategori, e.severity);
+      if (val > 0) totalTokenPositif += val;
+      else totalTokenNegatif += val;
+    }
+  });
+  const totalToken = totalTokenPositif + totalTokenNegatif;
 
   // Get student's PBD records
   const myPbd = pbdRecords.filter((r) => r.murid_id === student.id);
@@ -245,20 +255,29 @@ export default function AnakDashboardPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="text-center p-4 bg-blue-50 border-blue-100">
+              <Coins className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+              <span className={`block text-2xl font-bold ${
+                totalToken > 0 ? "text-green-700" : totalToken < 0 ? "text-red-700" : "text-gray-500"
+              }`}>
+                {totalToken > 0 ? `+${totalToken}` : totalToken}
+              </span>
+              <span className="text-xs text-blue-600">Jumlah Token</span>
+            </Card>
             <Card className="text-center p-4 bg-green-50 border-green-100">
               <TrendingUp className="w-6 h-6 text-green-600 mx-auto mb-2" />
               <span className="block text-2xl font-bold text-green-700">
-                {positifCount}
+                +{totalTokenPositif}
               </span>
-              <span className="text-xs text-green-600">Event Positif</span>
+              <span className="text-xs text-green-600">Token Positif</span>
             </Card>
             <Card className="text-center p-4 bg-red-50 border-red-100">
               <TrendingDown className="w-6 h-6 text-red-600 mx-auto mb-2" />
               <span className="block text-2xl font-bold text-red-700">
-                {negatifCount}
+                {totalTokenNegatif}
               </span>
-              <span className="text-xs text-red-600">Event Negatif</span>
+              <span className="text-xs text-red-600">Token Negatif</span>
             </Card>
           </div>
 
@@ -276,53 +295,57 @@ export default function AnakDashboardPage() {
                 />
               )}
 
-              {myEvents.map((event) => (
-                <Card
-                  key={event.id}
-                  className={`p-4 ${
-                    event.kategori === "Positif"
-                      ? "border-green-100"
-                      : "border-red-100"
-                  }`}
-                >
-                  <div className="flex gap-4">
-                    <div
-                      className={`mt-1 ${
-                        event.kategori === "Positif"
-                          ? "text-green-500"
-                          : "text-red-500"
-                      }`}
-                    >
-                      {event.kategori === "Positif" ? (
-                        <Star className="w-5 h-5" />
-                      ) : (
-                        <ShieldAlert className="w-5 h-5" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-gray-800">{event.jenis}</h3>
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(event.timestamp)}
-                        </div>
+              {myEvents.map((event) => {
+                const tokenVal = event.severity
+                  ? getTokenValue(event.kategori, event.severity)
+                  : 0;
+                return (
+                  <Card
+                    key={event.id}
+                    className={`p-4 ${
+                      event.kategori === "Positif"
+                        ? "border-green-100"
+                        : "border-red-100"
+                    }`}
+                  >
+                    <div className="flex gap-3">
+                      {/* Token Value Badge */}
+                      <div
+                        className={`mt-0.5 px-2.5 py-1.5 rounded-lg font-bold text-sm flex-shrink-0 ${
+                          event.kategori === "Positif"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {tokenVal > 0 ? `+${tokenVal}` : tokenVal}
                       </div>
-                      {event.severity && (
-                        <span
-                          className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 border ${
-                            SEVERITY_COLORS[event.severity]
-                          }`}
-                        >
-                          {event.severity}
-                        </span>
-                      )}
-                      <p className="text-sm text-gray-600 mt-2">
-                        {event.catatan || "Tiada catatan tambahan."}
-                      </p>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-gray-800">{event.jenis}</h3>
+                          <div className="flex items-center gap-1 text-xs text-gray-400">
+                            <Calendar className="w-3 h-3" />
+                            {formatDate(event.timestamp)}
+                          </div>
+                        </div>
+                        {event.severity && (
+                          <span
+                            className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 border ${
+                              SEVERITY_COLORS[event.severity]
+                            }`}
+                          >
+                            {event.severity === "Low" ? "Rendah" : event.severity === "Medium" ? "Sederhana" : "Tinggi"}
+                          </span>
+                        )}
+                        {event.catatan && (
+                          <p className="text-sm text-gray-600 mt-2 italic">
+                            &quot;{event.catatan}&quot;
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
 

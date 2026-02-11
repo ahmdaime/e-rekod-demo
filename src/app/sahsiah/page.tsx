@@ -26,6 +26,16 @@ import { formatTime, isToday, isThisWeek, isThisMonth } from "@/lib/utils";
 import { Trash2, Clock, TrendingUp, TrendingDown, CheckSquare, Square, Users, Search, Zap } from "lucide-react";
 
 type DateFilter = "today" | "week" | "month" | "all";
+type GenderFilter = "all" | "lelaki" | "perempuan";
+
+// Auto-detect jantina berdasarkan nama
+// BINT/BINTI = Perempuan, BIN (tanpa BINT) = Lelaki
+const detectGender = (nama: string): "lelaki" | "perempuan" => {
+  const upper = nama.toUpperCase();
+  if (upper.includes("BINT")) return "perempuan";
+  if (upper.includes("BIN")) return "lelaki";
+  return "lelaki"; // default
+};
 
 export default function SahsiahPage() {
   // Supabase hooks
@@ -39,6 +49,7 @@ export default function SahsiahPage() {
   const [catatan, setCatatan] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
   const [searchQuery, setSearchQuery] = useState("");
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Toggle Mode state
@@ -62,16 +73,35 @@ export default function SahsiahPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Get students in selected class (filtered by search)
+  // Get students in selected class (filtered by search & gender)
   const classStudents = useMemo(() =>
-    students.filter((s) =>
+    students.filter((s) => {
+      if (s.kelas !== selectedClass) return false;
+      if (searchQuery !== "" &&
+        !s.nama.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !s.no_kp.replace(/-/g, "").includes(searchQuery.replace(/-/g, "")))
+        return false;
+      if (genderFilter !== "all" && detectGender(s.nama) !== genderFilter) return false;
+      return true;
+    }),
+    [students, selectedClass, searchQuery, genderFilter]
+  );
+
+  // Count lelaki/perempuan in class (before gender filter, after search)
+  const genderCounts = useMemo(() => {
+    const inClass = students.filter((s) =>
       s.kelas === selectedClass &&
       (searchQuery === "" ||
        s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
        s.no_kp.replace(/-/g, "").includes(searchQuery.replace(/-/g, "")))
-    ),
-    [students, selectedClass, searchQuery]
-  );
+    );
+    let lelaki = 0, perempuan = 0;
+    inClass.forEach((s) => {
+      if (detectGender(s.nama) === "lelaki") lelaki++;
+      else perempuan++;
+    });
+    return { lelaki, perempuan, total: inClass.length };
+  }, [students, selectedClass, searchQuery]);
 
   // Filter events by date
   const filterEventsByDate = (events: typeof behaviorEvents) => {
@@ -311,6 +341,7 @@ export default function SahsiahPage() {
     setSelectedClass(newClass);
     setSelectedStudentIds(new Set());
     setSearchQuery("");
+    setGenderFilter("all");
     // Reset toggle mode state juga
     setStudentTokenStatus(new Map());
   };
@@ -370,6 +401,43 @@ export default function SahsiahPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+            </div>
+
+            {/* Gender Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-600">Jantina:</span>
+              <div className="flex gap-1.5 flex-1">
+                <button
+                  onClick={() => setGenderFilter("all")}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    genderFilter === "all"
+                      ? "bg-gray-800 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  Semua ({genderCounts.total})
+                </button>
+                <button
+                  onClick={() => setGenderFilter("lelaki")}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    genderFilter === "lelaki"
+                      ? "bg-blue-600 text-white"
+                      : "bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                  }`}
+                >
+                  Lelaki ({genderCounts.lelaki})
+                </button>
+                <button
+                  onClick={() => setGenderFilter("perempuan")}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    genderFilter === "perempuan"
+                      ? "bg-pink-600 text-white"
+                      : "bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200"
+                  }`}
+                >
+                  Perempuan ({genderCounts.perempuan})
+                </button>
+              </div>
             </div>
 
             {/* Toggle Mode Panel */}
