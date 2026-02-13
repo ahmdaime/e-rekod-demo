@@ -37,6 +37,7 @@ import {
   MessageSquare,
   Trash2,
 } from "lucide-react";
+import { deletePsvImage } from "@/lib/supabase";
 import type { DbPsvTask } from "@/types/database";
 
 export default function PsvPage() {
@@ -138,6 +139,28 @@ export default function PsvPage() {
   const undoReview = async (studentId: string) => {
     if (!selectedTask) return;
     await handleUpdateEvidence(studentId, "status", "Sudah Hantar");
+  };
+
+  // Reset bukti murid (padam gambar + reset status)
+  const handleResetEvidence = async (studentId: string, studentName: string) => {
+    if (!selectedTask) return;
+    if (!window.confirm(`Padam bukti ${studentName}? Murid/ibu bapa perlu hantar semula.`)) return;
+
+    const current = getEvidence(studentId, selectedTask.id);
+    // Padam gambar dari Storage jika ada
+    if (current?.gambar_url) {
+      await deletePsvImage(current.gambar_url);
+    }
+    // Reset evidence — kosongkan semua dan set status "Belum Hantar"
+    await upsertEvidence({
+      tugasan_id: selectedTask.id,
+      murid_id: studentId,
+      link_bukti: "",
+      gambar_url: "",
+      catatan: current?.catatan || "",
+      status: "Belum Hantar",
+    });
+    showToast(`Bukti ${studentName} telah dipadam`, "success");
   };
 
   // Handle delete task
@@ -407,6 +430,15 @@ export default function PsvPage() {
                             className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition-colors"
                           >
                             Batal Semak
+                          </button>
+                        )}
+                        {hasEvidence && (
+                          <button
+                            onClick={() => handleResetEvidence(student.id, student.nama)}
+                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Padam bukti murid"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>
