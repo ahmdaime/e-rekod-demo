@@ -75,16 +75,20 @@ export function useStudents() {
 export function useAssessments() {
   const [assessments, setAssessments] = useState<DbAssessment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAssessments = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    const { data, error: err } = await supabase
       .from("assessments")
       .select("*")
       .order("subjek")
       .order("nama");
 
-    if (!error) {
+    if (err) {
+      setError(err.message);
+    } else {
       setAssessments((data || []) as DbAssessment[]);
     }
     setLoading(false);
@@ -99,28 +103,44 @@ export function useAssessments() {
     fetchAssessments();
   }, [fetchAssessments]);
 
-  return { assessments, loading, fetchAssessments, getAssessmentsBySubject };
+  return { assessments, loading, error, fetchAssessments, getAssessmentsBySubject };
 }
 
 // ============================================
 // PBD RECORDS HOOK
 // ============================================
-export function usePbdRecords() {
+export function usePbdRecords(filters?: { kelas?: string; muridId?: string }) {
   const [pbdRecords, setPbdRecords] = useState<DbPbdRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchPbdRecords = useCallback(async () => {
+    if (filters?.muridId !== undefined && !filters.muridId) {
+      setPbdRecords([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    let query = supabase
       .from("pbd_records")
       .select("*")
       .order("updated_at", { ascending: false });
 
-    if (!error) {
+    if (filters?.kelas) query = query.eq("kelas", filters.kelas);
+    if (filters?.muridId) query = query.eq("murid_id", filters.muridId);
+
+    const { data, error: err } = await query;
+
+    if (err) {
+      setError(err.message);
+    } else {
       setPbdRecords((data || []) as DbPbdRecord[]);
     }
     setLoading(false);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters?.kelas, filters?.muridId]);
 
   const getPbdByStudent = useCallback(
     (muridId: string) => pbdRecords.filter((r) => r.murid_id === muridId),
@@ -216,28 +236,44 @@ export function usePbdRecords() {
     fetchPbdRecords();
   }, [fetchPbdRecords]);
 
-  return { pbdRecords, loading, fetchPbdRecords, getPbdByStudent, upsertPbdRecord, batchUpsertPbd, resetPbdByClass };
+  return { pbdRecords, loading, error, fetchPbdRecords, getPbdByStudent, upsertPbdRecord, batchUpsertPbd, resetPbdByClass };
 }
 
 // ============================================
 // BEHAVIOR EVENTS HOOK
 // ============================================
-export function useBehaviorEvents() {
+export function useBehaviorEvents(filters?: { kelas?: string; muridId?: string }) {
   const [behaviorEvents, setBehaviorEvents] = useState<DbBehaviorEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchBehaviorEvents = useCallback(async () => {
+    if (filters?.muridId !== undefined && !filters.muridId) {
+      setBehaviorEvents([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    let query = supabase
       .from("behavior_events")
       .select("*")
       .order("timestamp", { ascending: false });
 
-    if (!error) {
+    if (filters?.kelas) query = query.eq("kelas", filters.kelas);
+    if (filters?.muridId) query = query.eq("murid_id", filters.muridId);
+
+    const { data, error: err } = await query;
+
+    if (err) {
+      setError(err.message);
+    } else {
       setBehaviorEvents((data || []) as DbBehaviorEvent[]);
     }
     setLoading(false);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters?.kelas, filters?.muridId]);
 
   const getEventsByClass = useCallback(
     (kelas: string) => behaviorEvents.filter((e) => e.kelas === kelas),
@@ -306,6 +342,7 @@ export function useBehaviorEvents() {
   return {
     behaviorEvents,
     loading,
+    error,
     fetchBehaviorEvents,
     getEventsByClass,
     getEventsByStudent,
@@ -321,15 +358,19 @@ export function useBehaviorEvents() {
 export function usePsvTasks() {
   const [psvTasks, setPsvTasks] = useState<DbPsvTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchPsvTasks = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    const { data, error: err } = await supabase
       .from("psv_tasks")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error) {
+    if (err) {
+      setError(err.message);
+    } else {
       setPsvTasks((data || []) as DbPsvTask[]);
     }
     setLoading(false);
@@ -356,32 +397,61 @@ export function usePsvTasks() {
     []
   );
 
+  const deleteTask = useCallback(
+    async (taskId: string) => {
+      // Padam evidence berkaitan terlebih dahulu
+      await supabase.from("psv_evidence").delete().eq("tugasan_id", taskId);
+      // Padam tugasan
+      const { error } = await supabase.from("psv_tasks").delete().eq("id", taskId);
+      if (!error) {
+        setPsvTasks((prev) => prev.filter((t) => t.id !== taskId));
+      }
+      return { error };
+    },
+    []
+  );
+
   useEffect(() => {
     fetchPsvTasks();
   }, [fetchPsvTasks]);
 
-  return { psvTasks, loading, fetchPsvTasks, getTasksByClass, addTask };
+  return { psvTasks, loading, error, fetchPsvTasks, getTasksByClass, addTask, deleteTask };
 }
 
 // ============================================
 // PSV EVIDENCE HOOK
 // ============================================
-export function usePsvEvidence() {
+export function usePsvEvidence(filters?: { muridId?: string }) {
   const [psvEvidence, setPsvEvidence] = useState<DbPsvEvidence[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchPsvEvidence = useCallback(async () => {
+    if (filters?.muridId !== undefined && !filters.muridId) {
+      setPsvEvidence([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    let query = supabase
       .from("psv_evidence")
       .select("*")
       .order("updated_at", { ascending: false });
 
-    if (!error) {
+    if (filters?.muridId) query = query.eq("murid_id", filters.muridId);
+
+    const { data, error: err } = await query;
+
+    if (err) {
+      setError(err.message);
+    } else {
       setPsvEvidence((data || []) as DbPsvEvidence[]);
     }
     setLoading(false);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters?.muridId]);
 
   const getEvidenceByTask = useCallback(
     (tugasanId: string) => psvEvidence.filter((e) => e.tugasan_id === tugasanId),
@@ -436,6 +506,7 @@ export function usePsvEvidence() {
   return {
     psvEvidence,
     loading,
+    error,
     fetchPsvEvidence,
     getEvidenceByTask,
     getEvidenceByStudent,
@@ -449,16 +520,20 @@ export function usePsvEvidence() {
 export function useAppSettings() {
   const [pbdVisibleToParents, setPbdVisibleToParents] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    const { data, error: err } = await supabase
       .from("app_settings")
       .select("*")
       .eq("key", "pbd_visible_to_parents")
       .single();
 
-    if (!error && data) {
+    if (err) {
+      setError(err.message);
+    } else if (data) {
       const record = data as { value: { enabled?: boolean } };
       setPbdVisibleToParents(record.value?.enabled ?? false);
     }
@@ -482,5 +557,5 @@ export function useAppSettings() {
     fetchSettings();
   }, [fetchSettings]);
 
-  return { pbdVisibleToParents, loading, fetchSettings, togglePbdVisibility };
+  return { pbdVisibleToParents, loading, error, fetchSettings, togglePbdVisibility };
 }

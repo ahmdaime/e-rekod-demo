@@ -7,77 +7,10 @@ import type React from "react";
 export type Subject = "BM" | "Sejarah" | "PSV";
 export type Severity = "Low" | "Medium" | "High";
 export type EventCategory = "Positif" | "Negatif";
-export type EvidenceStatus = "Belum Hantar" | "Sudah Hantar" | "Dinilai";
 export type Semester = "PBD 1" | "PBD 2";
 
-// Student type
-export interface Student {
-  id: string;
-  nama: string;
-  noKp: string;
-  kelas: string;
-  tahun: number;
-}
-
-// PBD Record type
-export interface PbdRecord {
-  id: string;
-  muridId: string;
-  subjek: Subject;
-  kelas: string;
-  pentaksiranId: string;
-  tahunAkademik: string; // e.g., "2026"
-  semester: Semester; // "PBD 1" atau "PBD 2"
-  tp: 1 | 2 | 3 | 4 | 5 | 6 | null;
-  catatan: string;
-  updatedAt: string;
-}
-
-// Assessment type (Standard Pembelajaran level)
-export interface Assessment {
-  id: string;
-  subjek: Subject;
-  nama: string; // Nama SP e.g., "10.1.1"
-  tajuk?: string; // Nama Tajuk e.g., "Tajuk 10: Negara Malaysia"
-  standardKandungan?: string; // Nama SK e.g., "10.1 Pembentukan Malaysia"
-}
-
-// PSV Task type
-export interface PsvTask {
-  id: string;
-  nama: string;
-  kelas: string;
-  tarikhMula: string;
-  tarikhAkhir: string;
-}
-
-// PSV Evidence type
-export interface PsvEvidence {
-  id: string;
-  tugasanId: string;
-  muridId: string;
-  linkBukti: string;
-  gambarBukti?: string; // Base64 encoded image (temporary until backend)
-  catatan: string;
-  status: EvidenceStatus;
-}
-
-// Behavior Event type
-export interface BehaviorEvent {
-  id: string;
-  muridId: string;
-  namaMurid: string;
-  kelas: string;
-  jenis: string;
-  kategori: EventCategory;
-  severity: Severity | null;
-  catatan: string;
-  timestamp: string;
-  isPublic: boolean;
-}
-
-// Preset Event type
-export interface PresetEvent {
+// Preset Event type (used by PRESET_EVENTS constant)
+interface PresetEvent {
   label: string;
   kategori: EventCategory;
   isPublic: boolean;
@@ -96,16 +29,6 @@ export const TP_STYLES: Record<number, React.CSSProperties> = {
   4: { backgroundColor: "#84cc16", color: "white" }, // lime-500
   5: { backgroundColor: "#22c55e", color: "white" }, // green-500
   6: { backgroundColor: "#059669", color: "white" }, // emerald-600
-};
-
-// Tailwind classes (untuk fallback/legacy)
-export const TP_COLORS: Record<number, string> = {
-  1: "bg-red-500 text-white",
-  2: "bg-orange-500 text-white",
-  3: "bg-yellow-500 text-white",
-  4: "bg-lime-500 text-white",
-  5: "bg-green-500 text-white",
-  6: "bg-emerald-600 text-white",
 };
 
 export const TP_COLORS_LIGHT: Record<number, string> = {
@@ -141,41 +64,27 @@ export const getTokenValue = (kategori: EventCategory, severity: Severity): numb
 };
 
 export const PRESET_EVENTS: PresetEvent[] = [
-  // ============================================
-  // POSITIF - Umum (Cepat & Mudah)
-  // ============================================
+  // POSITIF - Umum
   { label: "Bagus", kategori: "Positif", isPublic: true, defaultSeverity: "Low" },
   { label: "Sangat Bagus", kategori: "Positif", isPublic: true, defaultSeverity: "Medium" },
   { label: "Cemerlang", kategori: "Positif", isPublic: true, defaultSeverity: "High" },
-
-  // ============================================
-  // POSITIF - Spesifik (Jika perlu)
-  // ============================================
-  // Tahap Rendah (+1 token)
+  // POSITIF - Spesifik
   { label: "Angkat tangan jawab soalan", kategori: "Positif", isPublic: true, defaultSeverity: "Low" },
   { label: "Siap kerja lebih awal", kategori: "Positif", isPublic: true, defaultSeverity: "Low" },
   { label: "Kemas meja dan kerusi", kategori: "Positif", isPublic: true, defaultSeverity: "Low" },
-  // Tahap Sederhana (+3 token)
   { label: "Bantu rakan faham pelajaran", kategori: "Positif", isPublic: true, defaultSeverity: "Medium" },
   { label: "Aktif dalam kerja kumpulan", kategori: "Positif", isPublic: true, defaultSeverity: "Medium" },
   { label: "Jaga kebersihan kelas", kategori: "Positif", isPublic: true, defaultSeverity: "Medium" },
-  // Tahap Tinggi (+5 token)
   { label: "Skor tertinggi dalam kuiz", kategori: "Positif", isPublic: true, defaultSeverity: "High" },
   { label: "Hasil kerja terbaik", kategori: "Positif", isPublic: true, defaultSeverity: "High" },
   { label: "Tolong guru urus kelas", kategori: "Positif", isPublic: true, defaultSeverity: "High" },
-
-  // ============================================
-  // NEGATIF - Aktiviti dalam kelas
-  // ============================================
-  // Tahap Rendah (-1 token)
+  // NEGATIF
   { label: "Bising dalam kelas", kategori: "Negatif", isPublic: true, defaultSeverity: "Low" },
   { label: "Lupa bawa buku/alatan", kategori: "Negatif", isPublic: true, defaultSeverity: "Low" },
   { label: "Lambat masuk kelas", kategori: "Negatif", isPublic: true, defaultSeverity: "Low" },
-  // Tahap Sederhana (-3 token)
   { label: "Tidak siap kerja sekolah", kategori: "Negatif", isPublic: true, defaultSeverity: "Medium" },
   { label: "Tidur dalam kelas", kategori: "Negatif", isPublic: true, defaultSeverity: "Medium" },
   { label: "Main telefon dalam kelas", kategori: "Negatif", isPublic: true, defaultSeverity: "Medium" },
-  // Tahap Tinggi (-5 token)
   { label: "Bergaduh dalam kelas", kategori: "Negatif", isPublic: true, defaultSeverity: "High" },
   { label: "Buli rakan sekelas", kategori: "Negatif", isPublic: true, defaultSeverity: "High" },
   { label: "Ganggu pembelajaran kelas", kategori: "Negatif", isPublic: true, defaultSeverity: "High" },

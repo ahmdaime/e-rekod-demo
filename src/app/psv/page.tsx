@@ -11,6 +11,8 @@ import {
   Breadcrumb,
   EmptyState,
   Spinner,
+  DebouncedInput,
+  ErrorBanner,
 } from "@/components/ui";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {
@@ -33,14 +35,17 @@ import {
   Eye,
   Clock,
   MessageSquare,
+  Trash2,
 } from "lucide-react";
 import type { DbPsvTask } from "@/types/database";
 
 export default function PsvPage() {
   // Supabase hooks
-  const { students, loading: studentsLoading } = useStudents();
-  const { psvTasks, addTask, loading: tasksLoading } = usePsvTasks();
-  const { psvEvidence, upsertEvidence, loading: evidenceLoading } = usePsvEvidence();
+  const { students, loading: studentsLoading, error: studentsError, fetchStudents } = useStudents();
+  const { psvTasks, addTask, deleteTask, loading: tasksLoading, error: tasksError, fetchPsvTasks } = usePsvTasks();
+  const { psvEvidence, upsertEvidence, loading: evidenceLoading, error: evidenceError, fetchPsvEvidence } = usePsvEvidence();
+
+  const loadError = studentsError || tasksError || evidenceError;
 
   // Local state
   const [selectedClass, setSelectedClass] = useState<string>(CLASS_SUBJECT_MAP["PSV"][0]);
@@ -135,6 +140,17 @@ export default function PsvPage() {
     await handleUpdateEvidence(studentId, "status", "Sudah Hantar");
   };
 
+  // Handle delete task
+  const handleDeleteTask = async (taskId: string, taskName: string) => {
+    if (!window.confirm(`Padam tugasan "${taskName}"? Semua bukti murid untuk tugasan ini juga akan dipadam.`)) return;
+    const { error } = await deleteTask(taskId);
+    if (error) {
+      showToast("Gagal memadam tugasan", "error");
+    } else {
+      showToast("Tugasan telah dipadam", "success");
+    }
+  };
+
   const isLoading = studentsLoading || tasksLoading || evidenceLoading;
 
   return (
@@ -150,6 +166,13 @@ export default function PsvPage() {
         )}
 
         <Breadcrumb items={[{ label: "Bukti PSV" }]} />
+
+        {loadError && (
+          <ErrorBanner
+            message={loadError}
+            onRetry={() => { fetchStudents(); fetchPsvTasks(); fetchPsvEvidence(); }}
+          />
+        )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -236,12 +259,24 @@ export default function PsvPage() {
                   </div>
                 </div>
 
-                {pendingReview > 0 && (
-                  <div className="bg-amber-50 text-amber-700 text-xs px-2 py-1 rounded-lg inline-flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {pendingReview} menunggu semakan
-                  </div>
-                )}
+                <div className="flex items-center justify-between mt-2">
+                  {pendingReview > 0 ? (
+                    <div className="bg-amber-50 text-amber-700 text-xs px-2 py-1 rounded-lg inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {pendingReview} menunggu semakan
+                    </div>
+                  ) : <div />}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTask(task.id, task.nama);
+                    }}
+                    className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Padam tugasan"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </Card>
             );
           })}
@@ -432,13 +467,13 @@ export default function PsvPage() {
                         <MessageSquare className="w-3 h-3" />
                         Catatan Guru (akan dipaparkan kepada ibu bapa)
                       </label>
-                      <input
+                      <DebouncedInput
                         type="text"
                         placeholder="Contoh: Bagus! Warna cantik..."
                         className="text-sm border rounded-lg px-3 py-2 w-full focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                         value={evidence?.catatan || ""}
-                        onChange={(e) =>
-                          handleUpdateEvidence(student.id, "catatan", e.target.value)
+                        onDebouncedChange={(value) =>
+                          handleUpdateEvidence(student.id, "catatan", value)
                         }
                       />
                     </div>

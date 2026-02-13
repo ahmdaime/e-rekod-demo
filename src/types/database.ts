@@ -20,6 +20,7 @@ export interface Database {
           no_kp: string;
           kelas: string;
           tahun: number;
+          jantina: "lelaki" | "perempuan";
           created_at: string;
           updated_at: string;
         };
@@ -29,6 +30,7 @@ export interface Database {
           no_kp: string;
           kelas: string;
           tahun?: number;
+          jantina?: "lelaki" | "perempuan";
           created_at?: string;
           updated_at?: string;
         };
@@ -38,6 +40,7 @@ export interface Database {
           no_kp?: string;
           kelas?: string;
           tahun?: number;
+          jantina?: "lelaki" | "perempuan";
           created_at?: string;
           updated_at?: string;
         };

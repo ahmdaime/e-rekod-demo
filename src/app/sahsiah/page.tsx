@@ -9,6 +9,7 @@ import {
   EmptyState,
   Textarea,
   Spinner,
+  ErrorBanner,
 } from "@/components/ui";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {
@@ -28,19 +29,10 @@ import { Trash2, Clock, TrendingUp, TrendingDown, CheckSquare, Square, Users, Se
 type DateFilter = "today" | "week" | "month" | "all";
 type GenderFilter = "all" | "lelaki" | "perempuan";
 
-// Auto-detect jantina berdasarkan nama
-// BINT/BINTI = Perempuan, BIN (tanpa BINT) = Lelaki
-const detectGender = (nama: string): "lelaki" | "perempuan" => {
-  const upper = nama.toUpperCase();
-  if (upper.includes("BINT")) return "perempuan";
-  if (upper.includes("BIN")) return "lelaki";
-  return "lelaki"; // default
-};
-
 export default function SahsiahPage() {
   // Supabase hooks
-  const { students, loading: studentsLoading } = useStudents();
-  const { behaviorEvents, addEvent, deleteEvent, loading: eventsLoading } = useBehaviorEvents();
+  const { students, loading: studentsLoading, error: studentsError, fetchStudents } = useStudents();
+  const { behaviorEvents, addEvent, deleteEvent, loading: eventsLoading, error: eventsError, fetchBehaviorEvents } = useBehaviorEvents();
 
   // Local state
   const [selectedClass, setSelectedClass] = useState<string>("6 Topaz");
@@ -81,7 +73,7 @@ export default function SahsiahPage() {
         !s.nama.toLowerCase().includes(searchQuery.toLowerCase()) &&
         !s.no_kp.replace(/-/g, "").includes(searchQuery.replace(/-/g, "")))
         return false;
-      if (genderFilter !== "all" && detectGender(s.nama) !== genderFilter) return false;
+      if (genderFilter !== "all" && s.jantina !== genderFilter) return false;
       return true;
     }),
     [students, selectedClass, searchQuery, genderFilter]
@@ -97,7 +89,7 @@ export default function SahsiahPage() {
     );
     let lelaki = 0, perempuan = 0;
     inClass.forEach((s) => {
-      if (detectGender(s.nama) === "lelaki") lelaki++;
+      if (s.jantina === "lelaki") lelaki++;
       else perempuan++;
     });
     return { lelaki, perempuan, total: inClass.length };
@@ -389,6 +381,19 @@ export default function SahsiahPage() {
         )}
 
         <Breadcrumb items={[{ label: "Rekod Token" }]} />
+
+        {/* Error Banner */}
+        {(studentsError || eventsError) && (
+          <div className="mb-4">
+            <ErrorBanner
+              message={studentsError || eventsError || ""}
+              onRetry={() => {
+                if (studentsError) fetchStudents();
+                if (eventsError) fetchBehaviorEvents();
+              }}
+            />
+          </div>
+        )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Panel: Controls */}

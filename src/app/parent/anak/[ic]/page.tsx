@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Card, Badge, EmptyState, Spinner } from "@/components/ui";
+import { Card, Badge, EmptyState, Spinner, DebouncedInput } from "@/components/ui";
 import { TP_COLORS_LIGHT, SEVERITY_COLORS, getTokenValue } from "@/types";
+import { uploadPsvImage, deletePsvImage } from "@/lib/supabase";
 import {
   useStudents,
   useBehaviorEvents,
@@ -52,16 +53,19 @@ export default function AnakDashboardPage() {
 
   // Supabase hooks
   const { getStudentByIc } = useStudents();
-  const { behaviorEvents, loading: eventsLoading } = useBehaviorEvents();
-  const { pbdRecords, loading: pbdLoading } = usePbdRecords();
-  const { psvTasks, loading: tasksLoading } = usePsvTasks();
-  const { psvEvidence, upsertEvidence, loading: evidenceLoading } = usePsvEvidence();
   const { assessments } = useAssessments();
   const { pbdVisibleToParents, loading: settingsLoading } = useAppSettings();
 
   // Local state
   const [student, setStudent] = useState<Awaited<ReturnType<typeof getStudentByIc>> | null>(null);
   const [studentLoading, setStudentLoading] = useState(true);
+
+  // Filtered hooks — only fetch data for THIS student (empty string = skip until student loaded)
+  const studentId = student?.id || "";
+  const { behaviorEvents, loading: eventsLoading } = useBehaviorEvents({ muridId: studentId });
+  const { pbdRecords, loading: pbdLoading } = usePbdRecords({ muridId: studentId });
+  const { psvTasks, loading: tasksLoading } = usePsvTasks();
+  const { psvEvidence, upsertEvidence, loading: evidenceLoading } = usePsvEvidence({ muridId: studentId });
   const [activeTab, setActiveTab] = useState<Tab>("sahsiah");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -89,9 +93,6 @@ export default function AnakDashboardPage() {
     const assessment = assessments.find((a) => a.id === pentaksiranId);
     return assessment?.nama || pentaksiranId;
   };
-
-  // Loading state
-  const isLoading = studentLoading || eventsLoading || pbdLoading || tasksLoading || evidenceLoading || settingsLoading;
 
   if (studentLoading) {
     return (
@@ -498,8 +499,8 @@ export default function AnakDashboardPage() {
 
         // Handle image upload
         const handleImageUpload = async (taskId: string, file: File) => {
-          if (file.size > 2 * 1024 * 1024) {
-            showToast("Saiz gambar terlalu besar. Maksimum 2MB.", "error");
+          if (file.size > 10 * 1024 * 1024) {
+            showToast("Saiz gambar terlalu besar. Maksimum 10MB.", "error");
             return;
           }
           if (!file.type.startsWith("image/")) {
@@ -507,28 +508,32 @@ export default function AnakDashboardPage() {
             return;
           }
 
-          const reader = new FileReader();
-          reader.onloadend = async () => {
-            const base64 = reader.result as string;
-            const current = getMyEvidence(taskId);
+          const { url, error } = await uploadPsvImage(file, student.id, taskId);
+          if (error || !url) {
+            showToast("Gagal memuat naik gambar. Sila cuba lagi.", "error");
+            return;
+          }
 
-            await upsertEvidence({
-              tugasan_id: taskId,
-              murid_id: student.id,
-              link_bukti: current?.link_bukti || "",
-              gambar_url: base64,
-              catatan: current?.catatan || "",
-              status: current?.status || "Belum Hantar",
-            });
-            showToast("Gambar berjaya dimuat naik", "success");
-          };
-          reader.readAsDataURL(file);
+          const current = getMyEvidence(taskId);
+          await upsertEvidence({
+            tugasan_id: taskId,
+            murid_id: student.id,
+            link_bukti: current?.link_bukti || "",
+            gambar_url: url,
+            catatan: current?.catatan || "",
+            status: current?.status || "Belum Hantar",
+          });
+          showToast("Gambar berjaya dimuat naik", "success");
         };
 
         // Handle remove image
         const handleRemoveImage = async (taskId: string) => {
           const current = getMyEvidence(taskId);
           if (current) {
+            // Delete from Storage if it's a URL (not old base64)
+            if (current.gambar_url) {
+              await deletePsvImage(current.gambar_url);
+            }
             await upsertEvidence({
               tugasan_id: taskId,
               murid_id: student.id,
@@ -697,7 +702,7 @@ export default function AnakDashboardPage() {
                                     Muat Naik Gambar Hasil Karya
                                   </p>
                                   <p className="text-xs text-purple-400 mt-1">
-                                    Maksimum 2MB (JPG, PNG)
+                                    Maksimum 10MB (akan dikecilkan automatik)
                                   </p>
                                 </div>
                                 <input
@@ -723,12 +728,12 @@ export default function AnakDashboardPage() {
                             {/* Link input */}
                             <div>
                               <p className="text-xs text-gray-500 mb-1">Pautan Google Drive / Telegram:</p>
-                              <input
+                              <DebouncedInput
                                 type="text"
                                 placeholder="https://drive.google.com/..."
                                 className="w-full text-sm border rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
                                 value={evidence?.link_bukti || ""}
-                                onChange={(e) => handleLinkChange(task.id, e.target.value)}
+                                onDebouncedChange={(value) => handleLinkChange(task.id, value)}
                               />
                             </div>
 

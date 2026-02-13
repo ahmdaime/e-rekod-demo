@@ -22,14 +22,14 @@ interface LeaderboardEntry {
 }
 
 export default function PapanTokenPage() {
-  // Supabase hooks
-  const { students, loading: studentsLoading } = useStudents();
-  const { behaviorEvents, loading: eventsLoading } = useBehaviorEvents();
-  const { psvTasks, loading: tasksLoading } = usePsvTasks();
-  const { psvEvidence, loading: evidenceLoading } = usePsvEvidence();
-
   // Local state
   const [classFilter, setClassFilter] = useState<string>(ALL_CLASSES[0]);
+
+  // Supabase hooks — filtered by selected class
+  const { students, loading: studentsLoading } = useStudents();
+  const { behaviorEvents, loading: eventsLoading } = useBehaviorEvents({ kelas: classFilter });
+  const { psvTasks, loading: tasksLoading } = usePsvTasks();
+  const { psvEvidence, loading: evidenceLoading } = usePsvEvidence();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPsvTask, setSelectedPsvTask] = useState<string | null>(null);
 

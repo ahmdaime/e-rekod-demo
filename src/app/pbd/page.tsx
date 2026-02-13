@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, Select, Breadcrumb, EmptyState, Spinner } from "@/components/ui";
+import { Card, Select, Breadcrumb, EmptyState, Spinner, DebouncedInput, ErrorBanner } from "@/components/ui";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import {
   useStudents,
@@ -17,9 +17,11 @@ type SortOrder = "asc" | "desc";
 
 export default function PbdPage() {
   // Supabase hooks
-  const { students, loading: studentsLoading } = useStudents();
-  const { pbdRecords, upsertPbdRecord, batchUpsertPbd, loading: pbdLoading } = usePbdRecords();
-  const { assessments, loading: assessmentsLoading } = useAssessments();
+  const { students, loading: studentsLoading, error: studentsError, fetchStudents } = useStudents();
+  const { pbdRecords, upsertPbdRecord, batchUpsertPbd, loading: pbdLoading, error: pbdError, fetchPbdRecords } = usePbdRecords();
+  const { assessments, loading: assessmentsLoading, error: assessmentsError, fetchAssessments } = useAssessments();
+
+  const loadError = studentsError || pbdError || assessmentsError;
 
   // Local state
   const [selectedSubject, setSelectedSubject] = useState<Subject>("BM");
@@ -184,42 +186,12 @@ export default function PbdPage() {
   // Export to Excel
   const handleExport = () => {
     try {
-      // Convert to format expected by export function (camelCase types)
-      const studentsForExport = filteredStudents.map(s => ({
-        id: s.id,
-        nama: s.nama,
-        noKp: s.no_kp,
-        kelas: s.kelas,
-        tahun: s.tahun,
-      }));
-
-      const assessmentsForExport = availableAssessments.map(a => ({
-        id: a.id,
-        subjek: a.subjek,
-        nama: a.nama,
-        tajuk: a.tajuk ?? undefined,
-        standardKandungan: a.standard_kandungan ?? undefined,
-      }));
-
-      const pbdRecordsForExport = filteredPbdRecords.map(r => ({
-        id: r.id,
-        muridId: r.murid_id,
-        subjek: r.subjek,
-        kelas: r.kelas,
-        pentaksiranId: r.pentaksiran_id,
-        tahunAkademik: r.tahun_akademik,
-        semester: r.semester,
-        tp: r.tp as 1 | 2 | 3 | 4 | 5 | 6 | null,
-        catatan: r.catatan,
-        updatedAt: r.updated_at,
-      }));
-
       exportPbdToExcel({
         subject: selectedSubject,
         className: selectedClass,
-        students: studentsForExport,
-        pbdRecords: pbdRecordsForExport,
-        assessments: assessmentsForExport,
+        students: filteredStudents,
+        pbdRecords: filteredPbdRecords,
+        assessments: availableAssessments,
         teacherName: "Cikgu",
         schoolName: "SK Contoh",
         year: selectedYear,
@@ -255,6 +227,13 @@ export default function PbdPage() {
         )}
 
         <Breadcrumb items={[{ label: "Rekod PBD" }]} />
+
+        {loadError && (
+          <ErrorBanner
+            message={loadError}
+            onRetry={() => { fetchStudents(); fetchPbdRecords(); fetchAssessments(); }}
+          />
+        )}
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -527,12 +506,12 @@ export default function PbdPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <input
+                        <DebouncedInput
                           type="text"
                           placeholder="Catatan ringkas..."
                           className="w-full text-sm border-b border-gray-200 focus:border-blue-500 focus:outline-none bg-transparent py-1"
                           value={record?.catatan || ""}
-                          onChange={(e) => handleNoteChange(student.id, e.target.value)}
+                          onDebouncedChange={(value) => handleNoteChange(student.id, value)}
                           disabled={!currentTp}
                         />
                       </td>
@@ -617,12 +596,12 @@ export default function PbdPage() {
                     </div>
 
                     {/* Note Input */}
-                    <input
+                    <DebouncedInput
                       type="text"
                       placeholder="Catatan ringkas..."
                       className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none"
                       value={record?.catatan || ""}
-                      onChange={(e) => handleNoteChange(student.id, e.target.value)}
+                      onDebouncedChange={(value) => handleNoteChange(student.id, value)}
                       disabled={!currentTp}
                     />
                   </div>
@@ -683,7 +662,7 @@ export default function PbdPage() {
                   const totalTp = studentRecords.reduce((sum, r) => sum + (r.tp || 0), 0);
                   const average = filledCount > 0 ? totalTp / filledCount : 0;
                   const overallTp = filledCount > 0 ? Math.ceil(average) : null;
-                  const progressPercent = (filledCount / totalSP) * 100;
+                  const progressPercent = totalSP > 0 ? (filledCount / totalSP) * 100 : 0;
 
                   return (
                     <tr key={student.id} className="hover:bg-gray-50">
@@ -747,7 +726,7 @@ export default function PbdPage() {
               const totalTp = studentRecords.reduce((sum, r) => sum + (r.tp || 0), 0);
               const average = filledCount > 0 ? totalTp / filledCount : 0;
               const overallTp = filledCount > 0 ? Math.ceil(average) : null;
-              const progressPercent = (filledCount / totalSP) * 100;
+              const progressPercent = totalSP > 0 ? (filledCount / totalSP) * 100 : 0;
 
               return (
                 <div key={student.id} className="p-4 flex items-center gap-4">

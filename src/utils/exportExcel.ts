@@ -1,12 +1,13 @@
 import * as XLSX from "xlsx";
-import { Student, PbdRecord, Assessment, Subject, Semester } from "@/types";
+import type { DbStudent, DbPbdRecord, DbAssessment } from "@/types/database";
+import type { Subject, Semester } from "@/types";
 
 interface ExportOptions {
   subject: Subject;
   className: string;
-  students: Student[];
-  pbdRecords: PbdRecord[];
-  assessments: Assessment[];
+  students: DbStudent[];
+  pbdRecords: DbPbdRecord[];
+  assessments: DbAssessment[];
   teacherName?: string;
   schoolName?: string;
   year?: string;
@@ -137,9 +138,9 @@ export function exportPbdToExcel(options: ExportOptions): void {
 function createOverviewSheet(
   subject: Subject,
   className: string,
-  students: Student[],
-  pbdRecords: PbdRecord[],
-  assessments: Assessment[],
+  students: DbStudent[],
+  pbdRecords: DbPbdRecord[],
+  assessments: DbAssessment[],
   teacherName: string,
   schoolName: string,
   year: string,
@@ -182,7 +183,7 @@ function createOverviewSheet(
   // Column headers - Row 3: Standard Kandungan
   const skRow: (string | number | null)[] = ["", "Standard Kandungan:"];
   assessments.forEach((a) => {
-    skRow.push(a.standardKandungan || "");
+    skRow.push(a.standard_kandungan || "");
   });
   skRow.push("", "");
   data.push(skRow);
@@ -199,9 +200,9 @@ function createOverviewSheet(
     assessments.forEach((assessment) => {
       const record = pbdRecords.find(
         (r) =>
-          r.muridId === student.id &&
+          r.murid_id === student.id &&
           r.subjek === subject &&
-          r.pentaksiranId === assessment.id
+          r.pentaksiran_id === assessment.id
       );
       if (record?.tp) {
         row.push(record.tp);
@@ -228,9 +229,9 @@ function createOverviewSheet(
 function createGroupedSheet(
   subject: Subject,
   className: string,
-  students: Student[],
-  pbdRecords: PbdRecord[],
-  assessments: Assessment[],
+  students: DbStudent[],
+  pbdRecords: DbPbdRecord[],
+  assessments: DbAssessment[],
   teacherName: string,
   schoolName: string,
   year: string,
@@ -255,16 +256,16 @@ function createGroupedSheet(
     assessments.forEach((assessment) => {
       const record = pbdRecords.find(
         (r) =>
-          r.muridId === student.id &&
+          r.murid_id === student.id &&
           r.subjek === subject &&
-          r.pentaksiranId === assessment.id
+          r.pentaksiran_id === assessment.id
       );
 
       data.push([
         isFirstRow ? idx + 1 : "",
         isFirstRow ? student.nama : "",
         assessment.tajuk || "",
-        assessment.standardKandungan || "",
+        assessment.standard_kandungan || "",
         assessment.nama,
         record?.tp || null,
         record?.catatan || "",
@@ -283,9 +284,9 @@ function createGroupedSheet(
 function createSummarySheet(
   subject: Subject,
   className: string,
-  students: Student[],
-  pbdRecords: PbdRecord[],
-  assessments: Assessment[],
+  students: DbStudent[],
+  pbdRecords: DbPbdRecord[],
+  assessments: DbAssessment[],
   teacherName: string,
   schoolName: string,
   year: string,
@@ -307,7 +308,7 @@ function createSummarySheet(
   // Student summary rows
   students.forEach((student, idx) => {
     const studentRecords = pbdRecords.filter(
-      (r) => r.muridId === student.id && r.subjek === subject && r.tp !== null
+      (r) => r.murid_id === student.id && r.subjek === subject && r.tp !== null
     );
 
     const filledCount = studentRecords.length;
@@ -333,7 +334,7 @@ function createSummarySheet(
   const allOverallTps = students
     .map((student) => {
       const studentRecords = pbdRecords.filter(
-        (r) => r.muridId === student.id && r.subjek === subject && r.tp !== null
+        (r) => r.murid_id === student.id && r.subjek === subject && r.tp !== null
       );
       if (studentRecords.length === 0) return null;
       const avg = studentRecords.reduce((sum, r) => sum + (r.tp || 0), 0) / studentRecords.length;

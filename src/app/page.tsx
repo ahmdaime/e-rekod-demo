@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { Card, Spinner } from "@/components/ui";
+import { Card, Spinner, ErrorBanner } from "@/components/ui";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { CLASS_SUBJECT_MAP, ALL_CLASSES } from "@/types";
 import { isToday } from "@/lib/utils";
@@ -22,9 +22,9 @@ import {
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { pbdRecords, loading: pbdLoading, resetPbdByClass } = usePbdRecords();
-  const { behaviorEvents, loading: eventsLoading, resetEventsByClass } = useBehaviorEvents();
-  const { pbdVisibleToParents, loading: settingsLoading, togglePbdVisibility } = useAppSettings();
+  const { pbdRecords, loading: pbdLoading, error: pbdError, fetchPbdRecords, resetPbdByClass } = usePbdRecords();
+  const { behaviorEvents, loading: eventsLoading, error: eventsError, fetchBehaviorEvents, resetEventsByClass } = useBehaviorEvents();
+  const { pbdVisibleToParents, loading: settingsLoading, error: settingsError, fetchSettings, togglePbdVisibility } = useAppSettings();
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -142,6 +142,18 @@ export default function DashboardPage() {
           <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
             {toastMessage}
           </div>
+        )}
+
+        {/* Error Banner */}
+        {(pbdError || eventsError || settingsError) && (
+          <ErrorBanner
+            message={pbdError || eventsError || settingsError || ""}
+            onRetry={() => {
+              if (pbdError) fetchPbdRecords();
+              if (eventsError) fetchBehaviorEvents();
+              if (settingsError) fetchSettings();
+            }}
+          />
         )}
 
         {/* Header */}
@@ -506,8 +518,22 @@ export default function DashboardPage() {
         {/* Database Status */}
         <div className="pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-            Disambung ke Supabase
+            {isLoading ? (
+              <>
+                <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                Menyambung ke Supabase...
+              </>
+            ) : (pbdError || eventsError || settingsError) ? (
+              <>
+                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                Gagal disambung ke Supabase
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                Disambung ke Supabase
+              </>
+            )}
           </p>
         </div>
       </div>
