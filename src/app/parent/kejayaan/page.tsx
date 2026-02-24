@@ -92,6 +92,45 @@ export default function PapanTokenPage() {
   // Get leaderboard for selected class (filtered by search)
   const allLeaderboard = getStudentTokens(classFilter);
 
+  // Dense ranking: murid dengan token sama mendapat kedudukan sama
+  const rankMap = useMemo(() => {
+    const map = new Map<string, number>();
+    let currentRank = 0;
+    let prevToken: number | null = null;
+    allLeaderboard.forEach((student) => {
+      if (student.totalToken !== prevToken) {
+        currentRank++;
+        prevToken = student.totalToken;
+      }
+      map.set(student.muridId, currentRank);
+    });
+    return map;
+  }, [allLeaderboard]);
+
+  // Kumpulkan murid mengikut rank untuk podium (top 3 ranks)
+  const podiumGroups = useMemo(() => {
+    const groups: { rank: number; students: LeaderboardEntry[] }[] = [];
+    let currentRank = 0;
+    let prevToken: number | null = null;
+    for (const student of allLeaderboard) {
+      if (student.totalToken !== prevToken) {
+        currentRank++;
+        prevToken = student.totalToken;
+      }
+      if (currentRank > 3) break;
+      const existing = groups.find((g) => g.rank === currentRank);
+      if (existing) {
+        existing.students.push(student);
+      } else {
+        groups.push({ rank: currentRank, students: [student] });
+      }
+    }
+    return groups;
+  }, [allLeaderboard]);
+
+  // Ada seri dalam top 3?
+  const hasTiedPodium = podiumGroups.some((g) => g.students.length > 1);
+
   // Get submission details for a specific task
   const getTaskSubmissionDetails = (taskId: string) => {
     const submittedStudentIds = psvEvidence
@@ -175,68 +214,110 @@ export default function PapanTokenPage() {
       {!isLoading && (
         <>
           {/* Top 3 Podium */}
-          {top3.length > 0 && (
+          {podiumGroups.length > 0 && (
             <div className="mb-8">
               <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
                 <Crown className="w-5 h-5 text-yellow-500" />
-                3 Murid Terbaik
+                3 Kedudukan Terbaik
               </h2>
-              <div className="grid grid-cols-3 gap-4">
-                {/* 2nd Place */}
-                {top3[1] ? (
-                  <div className="order-1 flex flex-col items-center">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600 mb-2">
-                      {top3[1].nama.charAt(0)}
-                    </div>
-                    <div className="bg-gray-300 text-gray-700 w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1">
-                      2
-                    </div>
-                    <p className="text-sm font-medium text-gray-700 text-center truncate w-full">
-                      {top3[1].nama}
-                    </p>
-                    <p className="text-lg font-bold text-gray-600">{top3[1].totalToken}</p>
-                  </div>
-                ) : (
-                  <div className="order-1" />
-                )}
 
-                {/* 1st Place */}
-                {top3[0] ? (
-                  <div className="order-2 flex flex-col items-center -mt-4">
-                    <Crown className="w-8 h-8 text-yellow-500 mb-1" />
-                    <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center text-3xl font-bold text-yellow-700 mb-2 ring-4 ring-yellow-400">
-                      {top3[0].nama.charAt(0)}
+              {!hasTiedPodium ? (
+                /* Podium klasik (tiada seri) — susun 2nd | 1st | 3rd */
+                <div className="grid grid-cols-3 gap-4">
+                  {/* 2nd Place */}
+                  {top3[1] ? (
+                    <div className="order-1 flex flex-col items-center">
+                      <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600 mb-2">
+                        {top3[1].nama.charAt(0)}
+                      </div>
+                      <div className="bg-gray-300 text-gray-700 w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1">
+                        2
+                      </div>
+                      <p className="text-sm font-medium text-gray-700 text-center truncate w-full">
+                        {top3[1].nama}
+                      </p>
+                      <p className="text-lg font-bold text-gray-600">{top3[1].totalToken}</p>
                     </div>
-                    <div className="bg-yellow-400 text-yellow-900 w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1">
-                      1
-                    </div>
-                    <p className="text-sm font-bold text-gray-800 text-center truncate w-full">
-                      {top3[0].nama}
-                    </p>
-                    <p className="text-xl font-bold text-yellow-600">{top3[0].totalToken}</p>
-                  </div>
-                ) : (
-                  <div className="order-2" />
-                )}
+                  ) : (
+                    <div className="order-1" />
+                  )}
 
-                {/* 3rd Place */}
-                {top3[2] ? (
-                  <div className="order-3 flex flex-col items-center">
-                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center text-2xl font-bold text-orange-600 mb-2">
-                      {top3[2].nama.charAt(0)}
+                  {/* 1st Place */}
+                  {top3[0] ? (
+                    <div className="order-2 flex flex-col items-center -mt-4">
+                      <Crown className="w-8 h-8 text-yellow-500 mb-1" />
+                      <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center text-3xl font-bold text-yellow-700 mb-2 ring-4 ring-yellow-400">
+                        {top3[0].nama.charAt(0)}
+                      </div>
+                      <div className="bg-yellow-400 text-yellow-900 w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1">
+                        1
+                      </div>
+                      <p className="text-sm font-bold text-gray-800 text-center truncate w-full">
+                        {top3[0].nama}
+                      </p>
+                      <p className="text-xl font-bold text-yellow-600">{top3[0].totalToken}</p>
                     </div>
-                    <div className="bg-orange-400 text-orange-900 w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1">
-                      3
+                  ) : (
+                    <div className="order-2" />
+                  )}
+
+                  {/* 3rd Place */}
+                  {top3[2] ? (
+                    <div className="order-3 flex flex-col items-center">
+                      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center text-2xl font-bold text-orange-600 mb-2">
+                        {top3[2].nama.charAt(0)}
+                      </div>
+                      <div className="bg-orange-400 text-orange-900 w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1">
+                        3
+                      </div>
+                      <p className="text-sm font-medium text-gray-700 text-center truncate w-full">
+                        {top3[2].nama}
+                      </p>
+                      <p className="text-lg font-bold text-orange-600">{top3[2].totalToken}</p>
                     </div>
-                    <p className="text-sm font-medium text-gray-700 text-center truncate w-full">
-                      {top3[2].nama}
-                    </p>
-                    <p className="text-lg font-bold text-orange-600">{top3[2].totalToken}</p>
-                  </div>
-                ) : (
-                  <div className="order-3" />
-                )}
-              </div>
+                  ) : (
+                    <div className="order-3" />
+                  )}
+                </div>
+              ) : (
+                /* Podium kad — ada seri, paparkan per rank */
+                <div className="space-y-3">
+                  {podiumGroups.map((group) => {
+                    const rankStyle = group.rank === 1
+                      ? { bg: "bg-yellow-50 border-yellow-300", badge: "bg-yellow-400 text-yellow-900", text: "text-yellow-700", avatar: "bg-yellow-100 text-yellow-700 ring-2 ring-yellow-400" }
+                      : group.rank === 2
+                      ? { bg: "bg-gray-50 border-gray-300", badge: "bg-gray-300 text-gray-700", text: "text-gray-600", avatar: "bg-gray-200 text-gray-600" }
+                      : { bg: "bg-orange-50 border-orange-300", badge: "bg-orange-400 text-orange-900", text: "text-orange-600", avatar: "bg-orange-100 text-orange-600" };
+                    return (
+                      <div key={group.rank} className={`border rounded-lg p-3 ${rankStyle.bg}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${rankStyle.badge}`}>
+                            {group.rank}
+                          </span>
+                          <span className={`font-bold ${rankStyle.text}`}>
+                            {group.students[0].totalToken} token
+                          </span>
+                          {group.students.length > 1 && (
+                            <span className="text-xs bg-white/70 px-2 py-0.5 rounded-full text-gray-600">
+                              {group.students.length} murid seri
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          {group.students.map((student) => (
+                            <div key={student.muridId} className="flex items-center gap-2">
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${rankStyle.avatar}`}>
+                                {student.nama.charAt(0)}
+                              </div>
+                              <span className="text-sm font-medium text-gray-800">{student.nama}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -274,27 +355,28 @@ export default function PapanTokenPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {leaderboard.map((student, index) => {
+                      {leaderboard.map((student) => {
                         const psvStats = getPsvStats(student.muridId);
                         const psvComplete = psvStats.submitted === psvStats.total && psvStats.total > 0;
+                        const rank = rankMap.get(student.muridId) ?? 0;
 
                         return (
                           <tr
                             key={student.muridId}
                             className={`hover:bg-gray-50 transition-colors ${
-                              index < 3 ? "bg-amber-50/50" : ""
+                              rank <= 3 ? "bg-amber-50/50" : ""
                             }`}
                           >
                             <td className="px-3 py-3">
-                              {index < 3 ? (
+                              {rank <= 3 ? (
                                 <span
-                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${rankColors[index]}`}
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${rankColors[rank - 1]}`}
                                 >
-                                  {index + 1}
+                                  {rank}
                                 </span>
                               ) : (
                                 <span className="text-gray-500 font-medium pl-2">
-                                  {index + 1}
+                                  {rank}
                                 </span>
                               )}
                             </td>

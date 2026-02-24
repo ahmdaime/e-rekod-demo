@@ -46,7 +46,7 @@ export default function SahsiahPage() {
 
   // Toggle Mode state
   const [isToggleMode, setIsToggleMode] = useState<boolean>(false);
-  const [studentTokenStatus, setStudentTokenStatus] = useState<Map<string, 'none' | 'positive' | 'negative'>>(new Map());
+  const [studentTokenStatus, setStudentTokenStatus] = useState<Map<string, 'none' | 'low' | 'medium' | 'high' | 'negative'>>(new Map());
   const [selectedPositiveEvent, setSelectedPositiveEvent] = useState<string>("Bagus");
   const [selectedNegativeEvent, setSelectedNegativeEvent] = useState<string>("Tidak siap kerja sekolah");
 
@@ -123,11 +123,11 @@ export default function SahsiahPage() {
     setSelectedStudentIds(new Set());
   };
 
-  // Toggle Mode: Tandakan semua murid sebagai positif
-  const handleMarkAllPositive = () => {
-    const newStatus = new Map<string, 'none' | 'positive' | 'negative'>();
+  // Toggle Mode: Tandakan semua murid mengikut tahap
+  const handleMarkAll = (level: 'low' | 'medium' | 'high') => {
+    const newStatus = new Map<string, 'none' | 'low' | 'medium' | 'high' | 'negative'>();
     classStudents.forEach(student => {
-      newStatus.set(student.id, 'positive');
+      newStatus.set(student.id, level);
     });
     setStudentTokenStatus(newStatus);
   };
@@ -137,18 +137,14 @@ export default function SahsiahPage() {
     setStudentTokenStatus(new Map());
   };
 
-  // Toggle Mode: Tukar status murid (positive → negative → none → positive)
+  // Toggle Mode: Tukar status murid (none → low → medium → high → negative → none)
   const handleToggleStudentStatus = (studentId: string) => {
     const newStatus = new Map(studentTokenStatus);
     const current = newStatus.get(studentId) || 'none';
 
-    if (current === 'none') {
-      newStatus.set(studentId, 'positive');
-    } else if (current === 'positive') {
-      newStatus.set(studentId, 'negative');
-    } else {
-      newStatus.set(studentId, 'none');
-    }
+    const cycle: Array<'none' | 'low' | 'medium' | 'high' | 'negative'> = ['none', 'low', 'medium', 'high', 'negative'];
+    const nextIndex = (cycle.indexOf(current) + 1) % cycle.length;
+    newStatus.set(studentId, cycle[nextIndex]);
 
     setStudentTokenStatus(newStatus);
   };
@@ -180,35 +176,42 @@ export default function SahsiahPage() {
     const positivePreset = positifEvents.find(e => e.label === selectedPositiveEvent);
     const negativePreset = negatifEvents.find(e => e.label === selectedNegativeEvent);
 
+    // Map toggle status ke severity
+    const statusToSeverity: Record<string, Severity> = {
+      low: "Low",
+      medium: "Medium",
+      high: "High",
+    };
+
     studentTokenStatus.forEach((status, studentId) => {
       const student = classStudents.find(s => s.id === studentId);
       if (!student || status === 'none') return;
 
-      if (status === 'positive') {
+      if (status === 'low' || status === 'medium' || status === 'high') {
         // Handle positive event (preset atau custom)
+        const toggleSeverity = statusToSeverity[status];
         if (isCustomPositive) {
-          // Custom positive event
-          const tokenSeverity: Severity = customPositiveToken === 1 ? "Low" : customPositiveToken === 3 ? "Medium" : "High";
+          // Custom positive event — guna severity dari toggle
           promises.push(addEvent({
             murid_id: student.id,
             nama_murid: student.nama,
             kelas: student.kelas,
             jenis: customPositiveEvent.trim(),
             kategori: "Positif",
-            severity: tokenSeverity,
+            severity: toggleSeverity,
             catatan: catatan,
             timestamp: timestamp,
             is_public: true,
           }));
         } else if (positivePreset) {
-          // Preset positive event
+          // Preset positive event — guna severity dari toggle
           promises.push(addEvent({
             murid_id: student.id,
             nama_murid: student.nama,
             kelas: student.kelas,
             jenis: positivePreset.label,
             kategori: positivePreset.kategori,
-            severity: positivePreset.defaultSeverity || "Low",
+            severity: toggleSeverity,
             catatan: catatan,
             timestamp: timestamp,
             is_public: positivePreset.isPublic,
@@ -256,13 +259,20 @@ export default function SahsiahPage() {
     } else if (failCount > 0) {
       showToast(`${successCount} berjaya, ${failCount} gagal disimpan. Sila cuba lagi.`, "error");
     } else {
-      // Kira jumlah
-      let positiveCount = 0, negativeCount = 0;
+      // Kira jumlah per tahap
+      let lowCount = 0, medCount = 0, highCount = 0, negativeCount = 0;
       studentTokenStatus.forEach(status => {
-        if (status === 'positive') positiveCount++;
+        if (status === 'low') lowCount++;
+        if (status === 'medium') medCount++;
+        if (status === 'high') highCount++;
         if (status === 'negative') negativeCount++;
       });
-      showToast(`Disimpan: ${positiveCount} positif, ${negativeCount} negatif`, "success");
+      const parts: string[] = [];
+      if (lowCount > 0) parts.push(`+1: ${lowCount}`);
+      if (medCount > 0) parts.push(`+3: ${medCount}`);
+      if (highCount > 0) parts.push(`+5: ${highCount}`);
+      if (negativeCount > 0) parts.push(`Negatif: ${negativeCount}`);
+      showToast(`Disimpan: ${parts.join(" | ")}`, "success");
     }
 
     // Reset hanya jika ada yang berjaya
@@ -487,16 +497,28 @@ export default function SahsiahPage() {
               {isToggleMode && (
                 <>
                   {/* Butang Tandakan Semua */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
-                      onClick={handleMarkAllPositive}
-                      className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors"
+                      onClick={() => handleMarkAll('low')}
+                      className="flex-1 min-w-[80px] px-3 py-2 bg-green-400 text-white rounded-lg hover:bg-green-500 font-medium transition-colors text-sm"
                     >
-                      Tandakan Semua Positif
+                      Semua +1
+                    </button>
+                    <button
+                      onClick={() => handleMarkAll('medium')}
+                      className="flex-1 min-w-[80px] px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors text-sm"
+                    >
+                      Semua +3
+                    </button>
+                    <button
+                      onClick={() => handleMarkAll('high')}
+                      className="flex-1 min-w-[80px] px-3 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 font-medium transition-colors text-sm"
+                    >
+                      Semua +5
                     </button>
                     <button
                       onClick={handleClearAllStatus}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors"
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors text-sm"
                     >
                       Reset
                     </button>
@@ -514,11 +536,12 @@ export default function SahsiahPage() {
                       >
                         {positifEvents.map(evt => (
                           <option key={evt.label} value={evt.label}>
-                            {evt.label} (+{TOKEN_VALUES[evt.defaultSeverity || "Low"]})
+                            {evt.label}
                           </option>
                         ))}
                         <option value="__custom__">✏️ Custom...</option>
                       </select>
+                      <p className="text-xs text-green-600">Token ditentukan oleh status toggle (+1/+3/+5)</p>
                       {selectedPositiveEvent === "__custom__" && (
                         <div className="space-y-2 p-2 bg-green-100 rounded-lg">
                           <input
@@ -587,9 +610,15 @@ export default function SahsiahPage() {
                   {/* Ringkasan & Butang Simpan */}
                   {Array.from(studentTokenStatus.values()).some(s => s !== 'none') && (
                     <div className="bg-white rounded-lg p-3 border border-purple-200">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>Positif: <strong className="text-green-600">
-                          {Array.from(studentTokenStatus.values()).filter(s => s === 'positive').length}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mb-2">
+                        <span>+1: <strong className="text-green-500">
+                          {Array.from(studentTokenStatus.values()).filter(s => s === 'low').length}
+                        </strong></span>
+                        <span>+3: <strong className="text-green-600">
+                          {Array.from(studentTokenStatus.values()).filter(s => s === 'medium').length}
+                        </strong></span>
+                        <span>+5: <strong className="text-green-800">
+                          {Array.from(studentTokenStatus.values()).filter(s => s === 'high').length}
                         </strong></span>
                         <span>Negatif: <strong className="text-red-600">
                           {Array.from(studentTokenStatus.values()).filter(s => s === 'negative').length}
@@ -654,37 +683,36 @@ export default function SahsiahPage() {
 
                       // Jika toggle mode aktif, tunjuk UI berbeza
                       if (isToggleMode) {
+                        const toggleStyles: Record<string, { bg: string; border: string; icon: string; text: string; badge: string; label: string }> = {
+                          low:      { bg: "bg-green-50",  border: "border-green-400", icon: "text-green-500", text: "font-medium text-green-800", badge: "bg-green-200 text-green-800", label: "+1" },
+                          medium:   { bg: "bg-green-100", border: "border-green-500", icon: "text-green-600", text: "font-medium text-green-900", badge: "bg-green-300 text-green-900", label: "+3" },
+                          high:     { bg: "bg-green-200", border: "border-green-700", icon: "text-green-700", text: "font-medium text-green-950", badge: "bg-green-500 text-white",     label: "+5" },
+                          negative: { bg: "bg-red-100",   border: "border-red-500",   icon: "text-red-600",   text: "font-medium text-red-900",   badge: "bg-red-200 text-red-800",     label: "Negatif" },
+                          none:     { bg: "",             border: "border-transparent", icon: "text-gray-300", text: "text-gray-700",               badge: "",                            label: "" },
+                        };
+                        const style = toggleStyles[tokenStatus] || toggleStyles.none;
+
                         return (
                           <div
                             key={student.id}
                             onClick={() => handleToggleStudentStatus(student.id)}
-                            className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
-                              tokenStatus === 'positive'
-                                ? "bg-green-100 border-l-4 border-green-500"
-                                : tokenStatus === 'negative'
-                                ? "bg-red-100 border-l-4 border-red-500"
-                                : "hover:bg-gray-50 border-l-4 border-transparent"
+                            className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${style.bg} border-l-4 ${style.border} ${
+                              tokenStatus === 'none' ? "hover:bg-gray-50" : ""
                             } ${index !== 0 ? "border-t border-gray-100" : ""}`}
                           >
-                            {tokenStatus === 'positive' ? (
-                              <TrendingUp className="w-5 h-5 text-green-600 flex-shrink-0" />
-                            ) : tokenStatus === 'negative' ? (
-                              <TrendingDown className="w-5 h-5 text-red-600 flex-shrink-0" />
+                            {tokenStatus === 'negative' ? (
+                              <TrendingDown className={`w-5 h-5 ${style.icon} flex-shrink-0`} />
+                            ) : tokenStatus !== 'none' ? (
+                              <TrendingUp className={`w-5 h-5 ${style.icon} flex-shrink-0`} />
                             ) : (
                               <Square className="w-5 h-5 text-gray-300 flex-shrink-0" />
                             )}
-                            <span className={`text-sm flex-1 ${
-                              tokenStatus === 'positive' ? "font-medium text-green-900"
-                              : tokenStatus === 'negative' ? "font-medium text-red-900"
-                              : "text-gray-700"
-                            }`}>
+                            <span className={`text-sm flex-1 ${style.text}`}>
                               {student.nama}
                             </span>
                             {tokenStatus !== 'none' && (
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                tokenStatus === 'positive' ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"
-                              }`}>
-                                {tokenStatus === 'positive' ? 'Positif' : 'Negatif'}
+                              <span className={`text-xs px-2 py-0.5 rounded font-medium ${style.badge}`}>
+                                {style.label}
                               </span>
                             )}
                           </div>
@@ -816,8 +844,8 @@ export default function SahsiahPage() {
             <p className="font-medium mb-1">Panduan Pantas:</p>
             {isToggleMode ? (
               <ol className="list-decimal list-inside space-y-1 text-amber-700">
-                <li>Klik "Tandakan Semua Positif" untuk set semua murid</li>
-                <li>Klik murid untuk tukar status (Positif → Negatif → Kosong)</li>
+                <li>Klik "Semua +1" untuk set semua murid (baseline)</li>
+                <li>Klik murid untuk naik tahap (+1 → +3 → +5 → Negatif → Kosong)</li>
                 <li>Pilih jenis event positif dan negatif</li>
                 <li>Tekan "Simpan Semua Token"</li>
               </ol>
