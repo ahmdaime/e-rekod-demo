@@ -9,7 +9,8 @@ import {
   useAssessments,
 } from "@/hooks/useSupabase";
 import { Subject, TP_STYLES, CLASS_SUBJECT_MAP, Semester, SEMESTERS, getAcademicYears, getCurrentSemester } from "@/types";
-import { Search, Save, Check, AlertCircle, Calculator, Download, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Save, Check, AlertCircle, Calculator, Download, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, Eye, EyeOff } from "lucide-react";
+import AiAutoFill from "@/components/AiAutoFill";
 import { exportPbdToExcel } from "@/utils/exportExcel";
 
 type SortField = "no" | "nama" | "no_kp";
@@ -34,8 +35,19 @@ export default function PbdPage() {
   const [sortField, setSortField] = useState<SortField>("no");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [showIc, setShowIc] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pbd-show-ic") !== "false";
+    }
+    return true;
+  });
 
   const academicYears = getAcademicYears();
+
+  // Persist showIc setting
+  useEffect(() => {
+    localStorage.setItem("pbd-show-ic", showIc.toString());
+  }, [showIc]);
 
   // Toast helper
   const showToast = (text: string, type: "success" | "error" = "success") => {
@@ -166,6 +178,54 @@ export default function PbdPage() {
 
     await batchUpsertPbd(records);
     showToast(`TP${tp} telah ditetapkan untuk ${filteredStudents.length} murid`, "success");
+  };
+
+  // AI auto-fill handler
+  const handleAiApply = async (assignments: Array<{ studentId: string; tp: 1 | 2 | 3 | 4 | 5 | 6 }>) => {
+    const records = assignments.map((a) => ({
+      murid_id: a.studentId,
+      subjek: selectedSubject as "BM" | "Sejarah" | "PSV",
+      kelas: selectedClass,
+      pentaksiran_id: selectedAssessmentId,
+      tahun_akademik: selectedYear,
+      semester: selectedSemester as "PBD 1" | "PBD 2",
+      tp: a.tp,
+      catatan: getStudentPbd(a.studentId)?.catatan || "",
+    }));
+    await batchUpsertPbd(records);
+    showToast(`TP ditetapkan untuk ${assignments.length} murid melalui AI`, "success");
+  };
+
+  // Reset TP for all students in current assessment
+  const resetAllTp = async () => {
+    if (!selectedAssessmentId) {
+      showToast("Sila pilih topik pentaksiran dahulu", "error");
+      return;
+    }
+
+    const studentsWithTp = filteredStudents.filter((s) => getStudentPbd(s.id)?.tp);
+    if (studentsWithTp.length === 0) {
+      showToast("Tiada TP untuk direset", "error");
+      return;
+    }
+
+    if (!window.confirm(`Reset TP untuk ${studentsWithTp.length} murid? TP akan dikosongkan.`)) {
+      return;
+    }
+
+    const records = studentsWithTp.map((s) => ({
+      murid_id: s.id,
+      subjek: selectedSubject as "BM" | "Sejarah" | "PSV",
+      kelas: selectedClass,
+      pentaksiran_id: selectedAssessmentId,
+      tahun_akademik: selectedYear,
+      semester: selectedSemester as "PBD 1" | "PBD 2",
+      tp: null,
+      catatan: getStudentPbd(s.id)?.catatan || "",
+    }));
+
+    await batchUpsertPbd(records);
+    showToast(`TP direset untuk ${studentsWithTp.length} murid`, "success");
   };
 
   // Toggle sort
@@ -402,7 +462,30 @@ export default function PbdPage() {
               TP{tp}
             </button>
           ))}
+          <div className="w-px h-6 bg-gray-300 mx-1" />
+          <button
+            onClick={resetAllTp}
+            className="px-3 py-1.5 rounded text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors whitespace-nowrap flex items-center gap-1"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Reset
+          </button>
+          <button
+            onClick={() => setShowIc(!showIc)}
+            className="px-3 py-1.5 rounded text-xs font-medium bg-white hover:bg-gray-50 text-gray-600 border border-gray-300 transition-colors whitespace-nowrap flex items-center gap-1"
+          >
+            {showIc ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+            {showIc ? "Sembunyi IC" : "Papar IC"}
+          </button>
         </div>
+
+        {/* AI Auto-Fill */}
+        <AiAutoFill
+          students={filteredStudents.map((s) => ({ id: s.id, nama: s.nama }))}
+          selectedAssessmentId={selectedAssessmentId}
+          onApply={handleAiApply}
+          disabled={!selectedAssessmentId}
+        />
       </div>
 
       {/* Warning if no assessment selected */}
@@ -482,7 +565,7 @@ export default function PbdPage() {
                         <div className="text-sm font-medium text-gray-900">
                           {student.nama}
                         </div>
-                        <div className="text-xs text-gray-400">{student.no_kp}</div>
+                        {showIc && <div className="text-xs text-gray-400">{student.no_kp}</div>}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex justify-center gap-1">
@@ -562,7 +645,7 @@ export default function PbdPage() {
                         <div className="font-medium text-gray-900">
                           {idx + 1}. {student.nama}
                         </div>
-                        <div className="text-xs text-gray-400">{student.no_kp}</div>
+                        {showIc && <div className="text-xs text-gray-400">{student.no_kp}</div>}
                       </div>
                       {currentTp && (
                         <span
