@@ -124,7 +124,7 @@ export default function SahsiahPage() {
   };
 
   // Toggle Mode: Tandakan semua murid mengikut tahap
-  const handleMarkAll = (level: 'low' | 'medium' | 'high') => {
+  const handleMarkAll = (level: 'low' | 'medium' | 'high' | 'negative') => {
     const newStatus = new Map<string, 'none' | 'low' | 'medium' | 'high' | 'negative'>();
     classStudents.forEach(student => {
       newStatus.set(student.id, level);
@@ -515,6 +515,12 @@ export default function SahsiahPage() {
                       className="flex-1 min-w-[80px] px-3 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 font-medium transition-colors text-sm"
                     >
                       Semua +5
+                    </button>
+                    <button
+                      onClick={() => handleMarkAll('negative')}
+                      className="flex-1 min-w-[80px] px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
+                    >
+                      Semua Negatif
                     </button>
                     <button
                       onClick={handleClearAllStatus}
