@@ -184,7 +184,7 @@ export default function SahsiahPage() {
     };
 
     studentTokenStatus.forEach((status, studentId) => {
-      const student = classStudents.find(s => s.id === studentId);
+      const student = students.find(s => s.id === studentId);
       if (!student || status === 'none') return;
 
       if (status === 'low' || status === 'medium' || status === 'high') {
@@ -314,7 +314,7 @@ export default function SahsiahPage() {
     let failCount = 0;
 
     const promises = Array.from(selectedStudentIds).map(async (studentId) => {
-      const student = classStudents.find((s) => s.id === studentId);
+      const student = students.find((s) => s.id === studentId);
       if (student) {
         const { error } = await addEvent({
           murid_id: student.id,
@@ -930,16 +930,10 @@ export default function SahsiahPage() {
                         </div>
 
                         <p className="text-sm font-medium text-gray-700 mt-0.5">
-                          {event.jenis}
+                          {event.catatan || event.jenis}
                         </p>
 
                         <p className="text-xs text-gray-500 mt-0.5">{event.kelas}</p>
-
-                        {event.catatan && (
-                          <p className="text-xs text-gray-500 mt-2 italic">
-                            "{event.catatan}"
-                          </p>
-                        )}
                       </div>
 
                       <button
