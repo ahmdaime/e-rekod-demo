@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Select,
@@ -19,8 +19,9 @@ import {
   useStudents,
   usePsvTasks,
   usePsvEvidence,
+  useBehaviorEvents,
 } from "@/hooks/useSupabase";
-import { CLASS_SUBJECT_MAP } from "@/types";
+import { CLASS_SUBJECT_MAP, TOKEN_VALUES, type Severity } from "@/types";
 import { formatDate } from "@/lib/utils";
 import {
   Plus,
@@ -36,17 +37,29 @@ import {
   Clock,
   MessageSquare,
   Trash2,
+  Star,
+  ChevronDown,
 } from "lucide-react";
 import { deletePsvImage } from "@/lib/supabase";
 import type { DbPsvTask } from "@/types/database";
+
+const PSV_TOKEN_OPTIONS: { label: string; severity: Severity | null; value: number }[] = [
+  { label: "Tiada Token", severity: null, value: 0 },
+  { label: "Perlu Diperbaiki", severity: "Low", value: 1 },
+  { label: "Memuaskan", severity: "Medium", value: 3 },
+  { label: "Cemerlang", severity: "High", value: 5 },
+];
+
+const PSV_JENIS_PREFIX = "Hasil Karya PSV: ";
 
 export default function PsvPage() {
   // Supabase hooks
   const { students, loading: studentsLoading, error: studentsError, fetchStudents } = useStudents();
   const { psvTasks, addTask, deleteTask, loading: tasksLoading, error: tasksError, fetchPsvTasks } = usePsvTasks();
   const { psvEvidence, upsertEvidence, loading: evidenceLoading, error: evidenceError, fetchPsvEvidence } = usePsvEvidence();
+  const { behaviorEvents, addEvent, deleteEvent, fetchBehaviorEvents, loading: eventsLoading, error: eventsError } = useBehaviorEvents();
 
-  const loadError = studentsError || tasksError || evidenceError;
+  const loadError = studentsError || tasksError || evidenceError || eventsError;
 
   // Local state
   const [selectedClass, setSelectedClass] = useState<string>(CLASS_SUBJECT_MAP["PSV"][0]);
@@ -56,6 +69,7 @@ export default function PsvPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [previewImage, setPreviewImage] = useState<{ nama: string; src: string } | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [reviewDropdownOpen, setReviewDropdownOpen] = useState<string | null>(null);
 
   // Toast helper
   const showToast = (text: string, type: "success" | "error" = "success") => {
@@ -128,17 +142,61 @@ export default function PsvPage() {
     });
   };
 
-  // Mark as reviewed
-  const markAsReviewed = async (studentId: string) => {
-    if (!selectedTask) return;
-    await handleUpdateEvidence(studentId, "status", "Dinilai");
-    showToast("Tugasan telah ditanda sebagai disemak", "success");
+  // PSV token helpers
+  const getPsvJenis = (taskName: string) => `${PSV_JENIS_PREFIX}${taskName}`;
+
+  const findPsvToken = (studentId: string, taskName: string) => {
+    const jenis = getPsvJenis(taskName);
+    return behaviorEvents.find((e) => e.murid_id === studentId && e.jenis === jenis);
   };
 
-  // Undo review (back to submitted)
+  // Mark as reviewed with optional token
+  const markAsReviewed = async (studentId: string, severity: Severity | null) => {
+    if (!selectedTask) return;
+
+    const student = classStudents.find((s) => s.id === studentId);
+    if (!student) return;
+
+    // Padam token PSV sedia ada (cegah duplikat)
+    const existingToken = findPsvToken(studentId, selectedTask.nama);
+    if (existingToken) {
+      await deleteEvent(existingToken.id);
+    }
+
+    // Cipta behavior event baru jika ada token
+    if (severity) {
+      await addEvent({
+        murid_id: student.id,
+        nama_murid: student.nama,
+        kelas: student.kelas,
+        jenis: getPsvJenis(selectedTask.nama),
+        kategori: "Positif",
+        severity: severity,
+        catatan: "",
+        timestamp: new Date().toISOString(),
+        is_public: true,
+      });
+    }
+
+    // Tukar status evidence kepada "Dinilai"
+    await handleUpdateEvidence(studentId, "status", "Dinilai");
+
+    const tokenDisplay = severity ? ` (+${TOKEN_VALUES[severity]} token)` : "";
+    showToast(`Tugasan telah ditanda sebagai disemak${tokenDisplay}`, "success");
+    setReviewDropdownOpen(null);
+  };
+
+  // Undo review — padam token bersekali
   const undoReview = async (studentId: string) => {
     if (!selectedTask) return;
+
+    const existingToken = findPsvToken(studentId, selectedTask.nama);
+    if (existingToken) {
+      await deleteEvent(existingToken.id);
+    }
+
     await handleUpdateEvidence(studentId, "status", "Sudah Hantar");
+    showToast("Semakan dan token telah dibatalkan", "success");
   };
 
   // Reset bukti murid (padam gambar + reset status)
@@ -147,6 +205,11 @@ export default function PsvPage() {
     if (!window.confirm(`Padam bukti ${studentName}? Murid/ibu bapa perlu hantar semula.`)) return;
 
     const current = getEvidence(studentId, selectedTask.id);
+    // Padam token PSV jika ada
+    const existingToken = findPsvToken(studentId, selectedTask.nama);
+    if (existingToken) {
+      await deleteEvent(existingToken.id);
+    }
     // Padam gambar dari Storage jika ada
     if (current?.gambar_url) {
       await deletePsvImage(current.gambar_url);
@@ -174,7 +237,20 @@ export default function PsvPage() {
     }
   };
 
-  const isLoading = studentsLoading || tasksLoading || evidenceLoading;
+  // Tutup dropdown bila klik luar
+  useEffect(() => {
+    if (!reviewDropdownOpen) return;
+    const handleClickOutside = () => setReviewDropdownOpen(null);
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handleClickOutside);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [reviewDropdownOpen]);
+
+  const isLoading = studentsLoading || tasksLoading || evidenceLoading || eventsLoading;
 
   return (
     <ProtectedRoute>
@@ -193,7 +269,7 @@ export default function PsvPage() {
         {loadError && (
           <ErrorBanner
             message={loadError}
-            onRetry={() => { fetchStudents(); fetchPsvTasks(); fetchPsvEvidence(); }}
+            onRetry={() => { fetchStudents(); fetchPsvTasks(); fetchPsvEvidence(); fetchBehaviorEvents(); }}
           />
         )}
 
@@ -416,21 +492,64 @@ export default function PsvPage() {
                       {/* Action buttons */}
                       <div className="flex items-center gap-2">
                         {isSubmitted && (
-                          <button
-                            onClick={() => markAsReviewed(student.id)}
-                            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            Tandakan Semak
-                          </button>
+                          <div className="relative">
+                            <button
+                              onClick={() => setReviewDropdownOpen(
+                                reviewDropdownOpen === student.id ? null : student.id
+                              )}
+                              className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              Tandakan Semak
+                              <ChevronDown className="w-3 h-3 ml-0.5" />
+                            </button>
+
+                            {reviewDropdownOpen === student.id && (
+                              <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                                <div className="p-2 border-b border-gray-100">
+                                  <p className="text-xs text-gray-500 font-medium px-2">
+                                    Pilih Penilaian Token
+                                  </p>
+                                </div>
+                                <div className="py-1">
+                                  {PSV_TOKEN_OPTIONS.map((option) => (
+                                    <button
+                                      key={option.label}
+                                      onClick={() => markAsReviewed(student.id, option.severity)}
+                                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between gap-2"
+                                    >
+                                      <span className="text-gray-700">{option.label}</span>
+                                      {option.value > 0 && (
+                                        <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold">
+                                          +{option.value}
+                                        </span>
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                         {isReviewed && (
-                          <button
-                            onClick={() => undoReview(student.id)}
-                            className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition-colors"
-                          >
-                            Batal Semak
-                          </button>
+                          <>
+                            {(() => {
+                              const token = selectedTask ? findPsvToken(student.id, selectedTask.nama) : null;
+                              if (!token?.severity) return null;
+                              return (
+                                <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">
+                                  <Star className="w-3 h-3" />
+                                  +{TOKEN_VALUES[token.severity as Severity]}
+                                </span>
+                              );
+                            })()}
+                            <button
+                              onClick={() => undoReview(student.id)}
+                              className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition-colors"
+                            >
+                              Batal Semak
+                            </button>
+                          </>
                         )}
                         {hasEvidence && (
                           <button
