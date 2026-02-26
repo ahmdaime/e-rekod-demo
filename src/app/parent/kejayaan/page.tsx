@@ -466,7 +466,7 @@ export default function PapanTokenPage() {
                             <p className="font-medium text-sm text-gray-800 truncate">
                               {event.nama_murid}
                             </p>
-                            <p className="text-xs text-gray-500 truncate">{event.jenis}</p>
+                            <p className="text-xs text-gray-500 truncate">{event.catatan || event.jenis}</p>
                           </div>
                         </div>
                         <p className="text-xs text-gray-400 mt-2">

@@ -322,7 +322,7 @@ export default function AnakDashboardPage() {
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-gray-800">{event.jenis}</h3>
+                          <h3 className="font-bold text-gray-800">{event.catatan || event.jenis}</h3>
                           <div className="flex items-center gap-1 text-xs text-gray-400">
                             <Calendar className="w-3 h-3" />
                             {formatDate(event.timestamp)}
@@ -338,8 +338,8 @@ export default function AnakDashboardPage() {
                           </span>
                         )}
                         {event.catatan && (
-                          <p className="text-sm text-gray-600 mt-2 italic">
-                            &quot;{event.catatan}&quot;
+                          <p className="text-xs text-gray-500 mt-1">
+                            {event.jenis}
                           </p>
                         )}
                       </div>
