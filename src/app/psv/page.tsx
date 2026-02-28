@@ -37,6 +37,7 @@ import {
   Clock,
   MessageSquare,
   Trash2,
+  Pencil,
   Star,
   ChevronDown,
 } from "lucide-react";
@@ -55,7 +56,7 @@ const PSV_JENIS_PREFIX = "Hasil Karya PSV: ";
 export default function PsvPage() {
   // Supabase hooks
   const { students, loading: studentsLoading, error: studentsError, fetchStudents } = useStudents();
-  const { psvTasks, addTask, deleteTask, loading: tasksLoading, error: tasksError, fetchPsvTasks } = usePsvTasks();
+  const { psvTasks, addTask, updateTask, deleteTask, loading: tasksLoading, error: tasksError, fetchPsvTasks } = usePsvTasks();
   const { psvEvidence, upsertEvidence, loading: evidenceLoading, error: evidenceError, fetchPsvEvidence } = usePsvEvidence();
   const { behaviorEvents, addEvent, deleteEvent, fetchBehaviorEvents, loading: eventsLoading, error: eventsError } = useBehaviorEvents();
 
@@ -70,6 +71,7 @@ export default function PsvPage() {
   const [previewImage, setPreviewImage] = useState<{ nama: string; src: string } | null>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [reviewDropdownOpen, setReviewDropdownOpen] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<DbPsvTask | null>(null);
 
   // Toast helper
   const showToast = (text: string, type: "success" | "error" = "success") => {
@@ -237,6 +239,23 @@ export default function PsvPage() {
     }
   };
 
+  // Handle edit task
+  const handleEditTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    const form = e.target as HTMLFormElement;
+    const nama = (form.elements.namedItem("editNama") as HTMLInputElement).value;
+    const tarikhAkhir = (form.elements.namedItem("editTarikhAkhir") as HTMLInputElement).value;
+
+    const { error } = await updateTask(editingTask.id, { nama, tarikh_akhir: tarikhAkhir });
+    if (error) {
+      showToast("Gagal mengemas kini tugasan", "error");
+    } else {
+      showToast("Tugasan telah dikemas kini", "success");
+    }
+    setEditingTask(null);
+  };
+
   // Tutup dropdown bila klik luar
   useEffect(() => {
     if (!reviewDropdownOpen) return;
@@ -365,16 +384,28 @@ export default function PsvPage() {
                       {pendingReview} menunggu semakan
                     </div>
                   ) : <div />}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTask(task.id, task.nama);
-                    }}
-                    className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Padam tugasan"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTask(task);
+                      }}
+                      className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit tugasan"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTask(task.id, task.nama);
+                      }}
+                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Padam tugasan"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </Card>
             );
@@ -678,6 +709,41 @@ export default function PsvPage() {
             <Button type="submit">Cipta</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit Task Modal */}
+      <Modal
+        isOpen={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        title="Edit Tugasan"
+      >
+        {editingTask && (
+          <form onSubmit={handleEditTask} className="space-y-4">
+            <Input
+              name="editNama"
+              label="Nama Tugasan"
+              required
+              defaultValue={editingTask.nama}
+            />
+            <Input
+              name="editTarikhAkhir"
+              label="Tarikh Akhir"
+              type="date"
+              required
+              defaultValue={editingTask.tarikh_akhir}
+            />
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditingTask(null)}
+              >
+                Batal
+              </Button>
+              <Button type="submit">Simpan</Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Image Preview Modal */}

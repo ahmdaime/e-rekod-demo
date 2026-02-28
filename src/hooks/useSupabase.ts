@@ -397,6 +397,26 @@ export function usePsvTasks() {
     []
   );
 
+  const updateTask = useCallback(
+    async (taskId: string, updates: { nama?: string; tarikh_akhir?: string }) => {
+      const { data, error } = await supabase
+        .from("psv_tasks")
+        .update(updates as never)
+        .eq("id", taskId)
+        .select()
+        .single();
+
+      if (!error && data) {
+        const typedData = data as DbPsvTask;
+        setPsvTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? typedData : t))
+        );
+      }
+      return { data: data as DbPsvTask | null, error };
+    },
+    []
+  );
+
   const deleteTask = useCallback(
     async (taskId: string) => {
       // Padam evidence berkaitan terlebih dahulu
@@ -415,7 +435,7 @@ export function usePsvTasks() {
     fetchPsvTasks();
   }, [fetchPsvTasks]);
 
-  return { psvTasks, loading, error, fetchPsvTasks, getTasksByClass, addTask, deleteTask };
+  return { psvTasks, loading, error, fetchPsvTasks, getTasksByClass, addTask, updateTask, deleteTask };
 }
 
 // ============================================
