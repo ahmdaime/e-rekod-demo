@@ -7,7 +7,7 @@ Sistem pengurusan rekod PBD (Pentaksiran Bilik Darjah), token sahsiah murid, dan
 - **Frontend:** Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS
 - **Backend:** Supabase (PostgreSQL + Storage + Auth + RLS)
 - **UI Icons:** lucide-react
-- **Export:** xlsx (Excel export untuk rekod PBD)
+- **Export:** exceljs (Excel export dengan styling penuh)
 
 ## Struktur Projek
 
@@ -18,6 +18,7 @@ src/
 │   ├── layout.tsx          # Root layout (AuthProvider + Navbar)
 │   ├── login/page.tsx      # Halaman login guru (Supabase Auth)
 │   ├── pbd/page.tsx        # Rekod PBD (pentaksiran murid per subjek)
+│   ├── semakan-buku/page.tsx # Semakan buku latihan (4 status + auto-token)
 │   ├── psv/page.tsx        # Semakan bukti PSV (karya seni murid) + token penilaian
 │   ├── sahsiah/page.tsx    # Rekod token sahsiah (positif/negatif)
 │   └── parent/             # Portal ibu bapa (tanpa login)
@@ -32,22 +33,25 @@ src/
 │   │   ├── Breadcrumb, EmptyState
 │   │   ├── DebouncedInput.tsx  # Input dengan debounce (500ms)
 │   │   └── ErrorBanner.tsx     # Banner error dengan butang retry
+│   ├── AiAutoFill.tsx        # Mock AI auto-isi TP (parsing teks BM, tanpa API)
 │   ├── auth/ProtectedRoute.tsx # Guard halaman guru
 │   └── layout/Navbar.tsx       # Navigation bar
 ├── hooks/
 │   └── useSupabase.ts      # Semua data hooks (SATU-SATUNYA data layer)
-│       # useStudents, useAssessments, usePbdRecords,
-│       # useBehaviorEvents, usePsvTasks, usePsvEvidence, useAppSettings
+│       # useStudents, useAssessments, usePbdRecords, useBehaviorEvents,
+│       # usePsvTasks, usePsvEvidence, useAppSettings, useBookTypes, useBookChecks
 ├── contexts/
 │   └── AuthContext.tsx      # Supabase Auth context (guru sahaja)
 ├── lib/
 │   ├── supabase.ts          # Supabase client + Storage helpers + compressImage
 │   └── utils.ts             # Fungsi utiliti (formatDate, isToday, cn, dll.)
+├── data/
+│   └── demoData.ts          # Semua mock data demo (murid, rekod, token, PSV, buku)
 ├── types/
 │   ├── database.ts          # Supabase DB types (SUMBER KEBENARAN untuk types)
 │   └── index.ts             # Constants, enums, PRESET_EVENTS (tiada interface)
 └── utils/
-    └── exportExcel.ts       # Export rekod PBD ke Excel
+    └── exportExcel.ts       # Export rekod PBD/buku ke Excel (exceljs + styling)
 ```
 
 ## Seni Bina & Keputusan Penting
@@ -160,10 +164,12 @@ standalone → single-tenant, macam sekarang, skip billing
 - Dokumentasi deploy untuk sekolah
 - ENV toggle saas/standalone
 
-### Ciri Baru Sedia Ada
-- `src/app/api/ai-tp/route.ts` — AI auto-isi TP via Gemini 2.0 Flash
-- `src/components/AiAutoFill.tsx` — Komponen UI AI (textarea → pratonton → apply)
+### Ciri Sedia Ada
+- `src/components/AiAutoFill.tsx` — Mock AI auto-isi TP (parsing teks BM, tanpa API luaran)
 - Reset TP & toggle sembunyi IC (localStorage) dalam `pbd/page.tsx`
+- Landing page fetch bilangan pendaftar waitlist dari Google Apps Script (doGet)
+- `generateStaticParams` jana route IC kedua-dua format (dengan & tanpa dash)
+- IC murid guna kod negeri `00` (rekaan, bukan MyKad sebenar)
 
 ### Token PSV
 - Guru beri token semasa semak bukti PSV (Tiada/Perlu Diperbaiki +1/Memuaskan +3/Cemerlang +5)
