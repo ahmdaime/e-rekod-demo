@@ -487,8 +487,8 @@ export default function LandingPage() {
                 a: "Boleh. Portal Ibu Bapa membenarkan akses menggunakan nombor kad pengenalan anak. Tiada akaun perlu didaftarkan.",
               },
               {
-                q: "Adakah data yang disimpan selamat?",
-                a: "Data disimpan dalam pangkalan data yang menggunakan penyulitan. Setiap guru hanya dapat melihat data mereka sendiri.",
+                q: "Adakah data murid selamat?",
+                a: "Data hanya boleh diakses oleh guru dan ibu bapa yang mempunyai No. KP murid. Sistem ini direka untuk kegunaan guru dan ibu bapa sahaja. Data disimpan dalam pangkalan data yang menggunakan penyulitan, dan setiap guru hanya dapat melihat data mereka sendiri.",
               },
               {
                 q: "Bolehkah rekod dimuat turun ke Excel?",
