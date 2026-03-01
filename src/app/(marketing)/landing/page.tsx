@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ClipboardList,
@@ -63,6 +63,19 @@ export default function LandingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [waitlistCount, setWaitlistCount] = useState<number | null>(null);
+
+  // Fetch waitlist count from Google Apps Script
+  useEffect(() => {
+    fetch(WAITLIST_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.count === "number" && data.count > 0) {
+          setWaitlistCount(data.count);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +109,7 @@ export default function LandingPage() {
         });
       }
       localStorage.setItem("waitlist_last_submit", Date.now().toString());
+      setWaitlistCount((prev) => (prev !== null ? prev + 1 : 1));
       setSubmitted(true);
     } catch {
       setSubmitError("Gagal menghantar. Sila cuba lagi.");
@@ -522,6 +536,11 @@ export default function LandingPage() {
             <p className="text-base text-gray-600">
               Kami akan hubungi anda dengan maklumat harga dan pakej apabila e-Rekod sedia dilancarkan. Tiada komitmen diperlukan.
             </p>
+            {waitlistCount !== null && (
+              <p className="mt-4 text-sm font-semibold text-[#2D6A4F]">
+                {waitlistCount} guru telah mendaftar
+              </p>
+            )}
           </div>
 
           {submitted ? (
