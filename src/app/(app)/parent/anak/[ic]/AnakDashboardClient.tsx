@@ -754,7 +754,7 @@ export default function AnakDashboardClient() {
                             <a
                               href={evidence.link_bukti}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
                             >
                               <ExternalLink className="w-4 h-4" />

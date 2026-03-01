@@ -24,10 +24,8 @@ import {
 } from "@/data/demoData";
 
 // Helper to generate unique IDs
-let idCounter = Date.now();
 function genId(prefix: string) {
-  idCounter++;
-  return `${prefix}-${idCounter}`;
+  return `${prefix}-${crypto.randomUUID()}`;
 }
 
 // ============================================

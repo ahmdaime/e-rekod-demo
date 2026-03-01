@@ -85,11 +85,9 @@ src/
 
 ## Supabase
 
-- **URL:** https://cwbtrlrmwvnfmhobbmab.supabase.co
-- **Jadual:** students, assessments, pbd_records, behavior_events, psv_tasks, psv_evidence, app_settings
-- **Storage bucket:** psv-evidence (public, RLS enabled)
+- **Jadual:** students, assessments, pbd_records, behavior_events, psv_tasks, psv_evidence, app_settings, book_types, book_checks
 - **Kolum jantina:** Ada dalam jadual students (`lelaki` / `perempuan`)
-- Setup SQL untuk Storage: `supabase/storage-setup.sql`
+- Demo tidak menggunakan Supabase sebenar (semua data in-memory)
 
 ## Arahan Build
 

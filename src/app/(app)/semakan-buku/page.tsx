@@ -156,7 +156,7 @@ export default function SemakanBukuPage() {
         // Padam token sedia ada (cegah duplikat)
         const existingToken = findBookCheckToken(muridId, bookName, tarikh);
         if (existingToken) {
-          deleteEvent(existingToken.id).catch(console.error);
+          deleteEvent(existingToken.id).catch(() => {});
         }
 
         // Cipta token baru berdasarkan status
@@ -171,7 +171,7 @@ export default function SemakanBukuPage() {
             catatan: "",
             timestamp: new Date().toISOString(),
             is_public: true,
-          }).catch(console.error);
+          }).catch(() => {});
         } else if (newStatus === "tidak_hantar") {
           addEvent({
             murid_id: student.id,
@@ -183,10 +183,10 @@ export default function SemakanBukuPage() {
             catatan: "",
             timestamp: new Date().toISOString(),
             is_public: true,
-          }).catch(console.error);
+          }).catch(() => {});
         }
       } catch (err) {
-        console.error("syncBookCheckToken error:", err);
+        // Token sync error silently handled
       }
     },
     [selectedBook, filteredStudents, findBookCheckToken, deleteEvent, addEvent, getBookCheckJenis]
@@ -301,7 +301,7 @@ export default function SemakanBukuPage() {
 
     const jenis = getBookCheckJenis(selectedBook.nama, dateToDelete);
     const tokens = behaviorEvents.filter((e) => e.jenis === jenis);
-    Promise.all(tokens.map((t) => deleteEvent(t.id))).catch(console.error);
+    Promise.all(tokens.map((t) => deleteEvent(t.id))).catch(() => {});
 
     const { error: checksError } = await deleteBookChecksByDate(selectedBookId, dateToDelete);
     if (checksError) {
@@ -324,7 +324,7 @@ export default function SemakanBukuPage() {
 
     const prefix = `${BOOK_CHECK_JENIS_PREFIX}${selectedBook.nama} (`;
     const tokens = behaviorEvents.filter((e) => e.jenis.startsWith(prefix));
-    Promise.all(tokens.map((t) => deleteEvent(t.id))).catch(console.error);
+    Promise.all(tokens.map((t) => deleteEvent(t.id))).catch(() => {});
 
     const bookName = selectedBook.nama;
     const { error } = await deleteBookType(selectedBookId);
@@ -352,7 +352,6 @@ export default function SemakanBukuPage() {
       });
       showToast("Fail Excel berjaya dimuat turun");
     } catch (error) {
-      console.error("Export error:", error);
       showToast("Gagal export ke Excel");
     }
   }, [selectedBook, filteredStudents, tarikhList, bookChecks, showToast]);

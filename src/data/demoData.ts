@@ -16,29 +16,29 @@ import type {
 const now = new Date().toISOString();
 
 export const DEMO_STUDENTS: DbStudent[] = [
-  // 6 Topaz (10 murid) — SEMUA NAMA & IC ADALAH REKAAN SEMATA-MATA
-  { id: "s1", nama: "DANIAL HAKIMI BIN ZULKARNAIN", no_kp: "140115-01-0123", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s2", nama: "HAFIZ IRFAN BIN ROSLAN", no_kp: "140322-02-0456", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s3", nama: "NUR AISYAH BINTI KAMARUDDIN", no_kp: "140518-03-0789", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s4", nama: "SITI MARIAM BINTI ABDULLAH", no_kp: "140704-04-1012", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s5", nama: "AIMAN HAZIQ BIN SHAHRUL", no_kp: "140901-05-1345", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s6", nama: "LUQMAN HAKIM BIN ISMAIL", no_kp: "141103-06-1678", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s7", nama: "NURIN BATRISYIA BINTI HAFIZ", no_kp: "140227-07-1901", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s8", nama: "ADAM MIKAIL BIN NORIZHAM", no_kp: "141019-08-2234", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s9", nama: "NUR ALYA SAFIYA BINTI RAMLAN", no_kp: "140613-09-2567", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s10", nama: "HARITH DANIEL BIN MAZLAN", no_kp: "140830-10-2890", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
+  // 6 Topaz (10 murid) — SEMUA NAMA & IC ADALAH REKAAN SEMATA-MATA (kod negeri 00 = tidak wujud)
+  { id: "s1", nama: "DANIAL HAKIMI BIN ZULKARNAIN", no_kp: "140115-00-0123", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s2", nama: "HAFIZ IRFAN BIN ROSLAN", no_kp: "140322-00-0456", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s3", nama: "NUR AISYAH BINTI KAMARUDDIN", no_kp: "140518-00-0789", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s4", nama: "SITI MARIAM BINTI ABDULLAH", no_kp: "140704-00-1012", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s5", nama: "AIMAN HAZIQ BIN SHAHRUL", no_kp: "140901-00-1345", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s6", nama: "LUQMAN HAKIM BIN ISMAIL", no_kp: "141103-00-1678", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s7", nama: "NURIN BATRISYIA BINTI HAFIZ", no_kp: "140227-00-1901", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s8", nama: "ADAM MIKAIL BIN NORIZHAM", no_kp: "141019-00-2234", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s9", nama: "NUR ALYA SAFIYA BINTI RAMLAN", no_kp: "140613-00-2567", kelas: "6 Topaz", tahun: 6, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s10", nama: "HARITH DANIEL BIN MAZLAN", no_kp: "140830-00-2890", kelas: "6 Topaz", tahun: 6, jantina: "lelaki", created_at: now, updated_at: now },
 
-  // 3 Pearl (10 murid) — SEMUA NAMA & IC ADALAH REKAAN SEMATA-MATA
-  { id: "s11", nama: "NUR IRDINA BINTI SAIFUL", no_kp: "170210-01-3123", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s12", nama: "MIKHAIL DARWISH BIN HAMIDI", no_kp: "170425-02-3456", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s13", nama: "PUTERI HANA BINTI AZMAN", no_kp: "170618-03-3789", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s14", nama: "ZAFRAN AQIL BIN NORAZMI", no_kp: "170807-04-4012", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s15", nama: "NUR QISTINA BINTI RAZALI", no_kp: "170103-05-4345", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s16", nama: "DARWISY IMAN BIN LOKMAN", no_kp: "170520-06-4678", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s17", nama: "ALEESYA DAMIA BINTI FAIZUL", no_kp: "170915-07-4901", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
-  { id: "s18", nama: "UWAIS QAYYIM BIN RIZAL", no_kp: "170312-08-5234", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s19", nama: "YUSUF RAYYAN BIN KAMARUL", no_kp: "170728-09-5567", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
-  { id: "s20", nama: "DANISH IRFAN BIN ZULHAIRI", no_kp: "171130-10-5890", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
+  // 3 Pearl (10 murid) — SEMUA NAMA & IC ADALAH REKAAN SEMATA-MATA (kod negeri 00 = tidak wujud)
+  { id: "s11", nama: "NUR IRDINA BINTI SAIFUL", no_kp: "170210-00-3123", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s12", nama: "MIKHAIL DARWISH BIN HAMIDI", no_kp: "170425-00-3456", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s13", nama: "PUTERI HANA BINTI AZMAN", no_kp: "170618-00-3789", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s14", nama: "ZAFRAN AQIL BIN NORAZMI", no_kp: "170807-00-4012", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s15", nama: "NUR QISTINA BINTI RAZALI", no_kp: "170103-00-4345", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s16", nama: "DARWISY IMAN BIN LOKMAN", no_kp: "170520-00-4678", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s17", nama: "ALEESYA DAMIA BINTI FAIZUL", no_kp: "170915-00-4901", kelas: "3 Pearl", tahun: 3, jantina: "perempuan", created_at: now, updated_at: now },
+  { id: "s18", nama: "UWAIS QAYYIM BIN RIZAL", no_kp: "170312-00-5234", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s19", nama: "YUSUF RAYYAN BIN KAMARUL", no_kp: "170728-00-5567", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
+  { id: "s20", nama: "DANISH IRFAN BIN ZULHAIRI", no_kp: "171130-00-5890", kelas: "3 Pearl", tahun: 3, jantina: "lelaki", created_at: now, updated_at: now },
 ];
 
 // Export IC list for generateStaticParams
@@ -288,17 +288,17 @@ export const DEMO_PSV_TASKS: DbPsvTask[] = [
 
 export const DEMO_PSV_EVIDENCE: DbPsvEvidence[] = [
   // Task 1: Lukisan Anyaman - mixed status
-  { id: "ev-1", tugasan_id: "task-1", murid_id: "s1", link_bukti: "", gambar_url: "", catatan: "Corak anyaman kemas dan kreatif", status: "Dinilai", created_at: now, updated_at: now },
-  { id: "ev-2", tugasan_id: "task-1", murid_id: "s2", link_bukti: "", gambar_url: "", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
-  { id: "ev-3", tugasan_id: "task-1", murid_id: "s3", link_bukti: "", gambar_url: "", catatan: "Sangat kreatif! Warna harmoni", status: "Dinilai", created_at: now, updated_at: now },
-  { id: "ev-4", tugasan_id: "task-1", murid_id: "s4", link_bukti: "", gambar_url: "", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
+  { id: "ev-1", tugasan_id: "task-1", murid_id: "s1", link_bukti: "", gambar_url: "/psv/karya-1.jpg", catatan: "Corak anyaman kemas dan kreatif", status: "Dinilai", created_at: now, updated_at: now },
+  { id: "ev-2", tugasan_id: "task-1", murid_id: "s2", link_bukti: "", gambar_url: "/psv/karya-2.jpg", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
+  { id: "ev-3", tugasan_id: "task-1", murid_id: "s3", link_bukti: "", gambar_url: "/psv/karya-3.jpg", catatan: "Sangat kreatif! Warna harmoni", status: "Dinilai", created_at: now, updated_at: now },
+  { id: "ev-4", tugasan_id: "task-1", murid_id: "s4", link_bukti: "", gambar_url: "/psv/karya-4.jpg", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
   // s5, s6 - Belum Hantar (no evidence entry needed, they just won't have one)
-  { id: "ev-5", tugasan_id: "task-1", murid_id: "s7", link_bukti: "https://drive.google.com/demo-link", gambar_url: "", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
-  { id: "ev-6", tugasan_id: "task-1", murid_id: "s9", link_bukti: "", gambar_url: "", catatan: "Perlu perbaiki teknik anyaman", status: "Dinilai", created_at: now, updated_at: now },
+  { id: "ev-5", tugasan_id: "task-1", murid_id: "s7", link_bukti: "https://drive.google.com/demo-link", gambar_url: "/psv/karya-1.jpg", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
+  { id: "ev-6", tugasan_id: "task-1", murid_id: "s9", link_bukti: "", gambar_url: "/psv/karya-2.jpg", catatan: "Perlu perbaiki teknik anyaman", status: "Dinilai", created_at: now, updated_at: now },
 
   // Task 2: Kolaj Haiwan - mostly pending (baru dibuat)
-  { id: "ev-7", tugasan_id: "task-2", murid_id: "s1", link_bukti: "", gambar_url: "", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
-  { id: "ev-8", tugasan_id: "task-2", murid_id: "s3", link_bukti: "", gambar_url: "", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
+  { id: "ev-7", tugasan_id: "task-2", murid_id: "s1", link_bukti: "", gambar_url: "/psv/karya-3.jpg", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
+  { id: "ev-8", tugasan_id: "task-2", murid_id: "s3", link_bukti: "", gambar_url: "/psv/karya-4.jpg", catatan: "", status: "Sudah Hantar", created_at: now, updated_at: now },
 ];
 
 // ============================================

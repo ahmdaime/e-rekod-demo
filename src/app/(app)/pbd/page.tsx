@@ -259,7 +259,6 @@ export default function PbdPage() {
       });
       showToast("Fail Excel berjaya dimuat turun!", "success");
     } catch (error) {
-      console.error("Export error:", error);
       showToast("Gagal export ke Excel", "error");
     }
   };

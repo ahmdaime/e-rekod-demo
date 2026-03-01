@@ -86,10 +86,10 @@ export default function AnakLoginPage() {
           </p>
           <div className="space-y-1.5">
             {[
-              { ic: "140115-01-0123", nama: "DANIAL HAKIMI (6 Topaz)" },
-              { ic: "140518-03-0789", nama: "NUR AISYAH (6 Topaz)" },
-              { ic: "170210-01-3123", nama: "NUR IRDINA (3 Pearl)" },
-              { ic: "170425-02-3456", nama: "MIKHAIL DARWISH (3 Pearl)" },
+              { ic: "140115-00-0123", nama: "DANIAL HAKIMI (6 Topaz)" },
+              { ic: "140518-00-0789", nama: "NUR AISYAH (6 Topaz)" },
+              { ic: "170210-00-3123", nama: "NUR IRDINA (3 Pearl)" },
+              { ic: "170425-00-3456", nama: "MIKHAIL DARWISH (3 Pearl)" },
             ].map(({ ic, nama }) => (
               <button
                 key={ic}

@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /parent/
+Disallow: /pbd/
+Disallow: /sahsiah/
+Disallow: /psv/
+Disallow: /semakan-buku/
+
+Allow: /landing/
+Allow: /

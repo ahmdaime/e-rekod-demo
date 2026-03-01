@@ -72,6 +72,65 @@ export default function AiAutoFill({ students, selectedAssessmentId, onApply, di
     return null;
   }
 
+  // Mock AI: parse user text to extract names + TP, simulate API delay
+  function mockAiAnalyse(input: string, studentNames: string[]): {
+    assignments: Array<{ name: string; tp: number }>;
+    defaultTp: number | null;
+  } {
+    const lower = input.toLowerCase();
+    const assignments: Array<{ name: string; tp: number }> = [];
+    const usedNames = new Set<string>();
+
+    // Extract default TP from patterns like "semua TP4", "semua murid TP3"
+    let defaultTp: number | null = null;
+    const defaultMatch = lower.match(/semua(?:\s+murid)?\s+tp\s*(\d)/i);
+    if (defaultMatch) {
+      defaultTp = Math.max(1, Math.min(6, parseInt(defaultMatch[1])));
+    }
+
+    // Extract individual assignments: "Danial TP5", "Aisyah tp 3", etc.
+    // Match patterns like "[name] TP[n]" or "TP[n] [name]"
+    const namePatterns = studentNames.map((name) => {
+      // Get first meaningful word (skip short words like BIN, BINTI)
+      const words = name.split(/\s+/).filter((w) => w.length >= 3 && !["BIN", "BINTI"].includes(w));
+      return { fullName: name, keywords: words };
+    });
+
+    for (const { fullName, keywords } of namePatterns) {
+      for (const kw of keywords) {
+        const kwLower = kw.toLowerCase();
+        // Check if this keyword appears in the input
+        if (!lower.includes(kwLower)) continue;
+        if (usedNames.has(fullName)) continue;
+
+        // Look for TP value AFTER this name mention (closest match)
+        const kwIndex = lower.indexOf(kwLower);
+        const afterName = lower.slice(kwIndex + kwLower.length, kwIndex + kwLower.length + 20);
+        const tpAfter = afterName.match(/\s*tp\s*(\d)/i);
+
+        // Also check BEFORE the name (e.g. "TP5 Danial")
+        const beforeName = lower.slice(Math.max(0, kwIndex - 15), kwIndex);
+        const tpBefore = beforeName.match(/tp\s*(\d)\s*$/i);
+
+        const tpMatch = tpAfter || tpBefore;
+
+        if (tpMatch) {
+          const tp = Math.max(1, Math.min(6, parseInt(tpMatch[1])));
+          assignments.push({ name: fullName, tp });
+          usedNames.add(fullName);
+        }
+        break;
+      }
+    }
+
+    // If no default found but no specific assignments either, assume TP4
+    if (defaultTp === null && assignments.length === 0) {
+      defaultTp = 4;
+    }
+
+    return { assignments, defaultTp };
+  }
+
   async function handleAnalyse() {
     if (!text.trim()) {
       setError("Sila taip arahan terlebih dahulu.");
@@ -82,24 +141,13 @@ export default function AiAutoFill({ students, selectedAssessmentId, onApply, di
     setUiState("loading");
 
     try {
-      const res = await fetch("/api/ai-tp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: text.trim(),
-          studentNames: students.map((s) => s.nama),
-        }),
-      });
+      // Simulate AI processing delay
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Ralat API (${res.status})`);
-      }
-
-      const data: {
-        assignments: Array<{ name: string; tp: number }>;
-        defaultTp: number | null;
-      } = await res.json();
+      const data = mockAiAnalyse(
+        text.trim(),
+        students.map((s) => s.nama)
+      );
 
       // Match AI names to actual students
       const matchedList: MatchedAssignment[] = [];
@@ -213,7 +261,7 @@ export default function AiAutoFill({ students, selectedAssessmentId, onApply, di
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder='Contoh: "Semua murid TP4 kecuali Adni dan Fahim TP5. Muzaffar dan Fateh perlukan bimbingan, TP3."'
+              placeholder='Contoh: "Semua murid TP4 kecuali Danial TP5 dan Aisyah TP3."'
               className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none resize-none"
               rows={3}
               disabled={uiState === "loading"}

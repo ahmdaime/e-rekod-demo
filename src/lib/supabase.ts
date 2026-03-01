@@ -12,6 +12,7 @@ export async function compressImage(file: File): Promise<File> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      URL.revokeObjectURL(img.src);
       let { width, height } = img;
 
       if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
@@ -51,7 +52,10 @@ export async function compressImage(file: File): Promise<File> {
         COMPRESS_QUALITY
       );
     };
-    img.onerror = () => reject(new Error("Gagal memproses gambar"));
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error("Gagal memproses gambar"));
+    };
     img.src = URL.createObjectURL(file);
   });
 }
