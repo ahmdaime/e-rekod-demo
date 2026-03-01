@@ -23,8 +23,6 @@ import {
 } from "@/lib/utils";
 import {
   User,
-  Star,
-  ShieldAlert,
   BookOpen,
   Lock,
   Calendar,
@@ -42,12 +40,13 @@ import {
   Send,
   CheckCircle2,
   Coins,
+  Star,
 } from "lucide-react";
 
 type Tab = "sahsiah" | "pbd" | "psv";
 type DateFilter = "today" | "week" | "month" | "all";
 
-export default function AnakDashboardPage() {
+export default function AnakDashboardClient() {
   const params = useParams();
   const ic = decodeURIComponent(params.ic as string);
 
@@ -114,7 +113,7 @@ export default function AnakDashboardPage() {
             Murid Tidak Dijumpai
           </h2>
           <p className="text-gray-500 mb-4">
-            No. KP "{ic}" tidak wujud dalam sistem.
+            No. KP &quot;{ic}&quot; tidak wujud dalam sistem.
           </p>
           <Link
             href="/parent/anak"
@@ -530,7 +529,6 @@ export default function AnakDashboardPage() {
         const handleRemoveImage = async (taskId: string) => {
           const current = getMyEvidence(taskId);
           if (current) {
-            // Delete from Storage if it's a URL (not old base64)
             if (current.gambar_url) {
               await deletePsvImage(current.gambar_url);
             }
@@ -800,7 +798,7 @@ export default function AnakDashboardPage() {
               <p className="font-medium mb-1">Panduan:</p>
               <ol className="list-decimal list-inside space-y-1 text-amber-700">
                 <li>Muat naik gambar hasil karya ATAU masukkan pautan</li>
-                <li>Klik "Hantar Bukti" untuk menghantar kepada guru</li>
+                <li>Klik &quot;Hantar Bukti&quot; untuk menghantar kepada guru</li>
                 <li>Guru akan semak dan beri maklum balas</li>
               </ol>
             </div>

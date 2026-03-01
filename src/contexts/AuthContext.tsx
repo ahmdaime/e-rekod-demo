@@ -1,70 +1,42 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import type { User, Session } from "@supabase/supabase-js";
+import React, { createContext, useContext } from "react";
+import { useRouter } from "next/navigation";
+
+interface DemoUser {
+  id: string;
+  email: string;
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: DemoUser | null;
+  session: unknown;
   loading: boolean;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
 }
 
+const demoUser: DemoUser = {
+  id: "demo-teacher",
+  email: "cikgu@demo.erekod.my",
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error: error as Error | null };
-  };
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error: error as Error | null };
-  };
-
-  const value = {
-    user,
-    session,
-    loading,
-    isAuthenticated: !!user,
-    signIn,
-    signOut,
+  const value: AuthContextType = {
+    user: demoUser,
+    session: { user: demoUser },
+    loading: false,
+    isAuthenticated: true,
+    signIn: async () => ({ error: null }),
+    signOut: async () => {
+      router.push("/landing");
+      return { error: null };
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

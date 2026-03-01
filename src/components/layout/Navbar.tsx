@@ -16,11 +16,13 @@ import {
   ChevronLeft,
   LogOut,
   LogIn,
+  ClipboardCheck,
 } from "lucide-react";
 
 const teacherNavLinks = [
   { name: "Utama", path: "/", icon: Home },
   { name: "Rekod PBD", path: "/pbd", icon: FileText },
+  { name: "Semakan Buku", path: "/semakan-buku", icon: ClipboardCheck },
   { name: "Bukti PSV", path: "/psv", icon: Image },
   { name: "Rekod Token", path: "/sahsiah", icon: Coins },
 ];
@@ -34,7 +36,7 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     await signOut();
-    router.push("/login");
+    router.push("/landing");
   };
 
   // Parent Portal Navbar
@@ -56,7 +58,15 @@ export const Navbar: React.FC = () => {
                 Portal Ibu Bapa
               </span>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              <Link
+                href="/"
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                title="Kembali ke Dashboard Guru"
+              >
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </Link>
               {pathname.includes("/parent/anak/") && (
                 <Link
                   href="/parent"

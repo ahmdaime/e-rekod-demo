@@ -12,6 +12,7 @@ import {
   Image,
   Coins,
   Users,
+  ClipboardCheck,
   ClipboardList,
   Activity,
   Settings,
@@ -165,7 +166,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Quick Access Menu */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Link href="/pbd">
           <Card
             hover
@@ -204,6 +205,20 @@ export default function DashboardPage() {
             </div>
             <span className="font-semibold text-gray-800 text-center">
               Rekod Token
+            </span>
+          </Card>
+        </Link>
+
+        <Link href="/semakan-buku">
+          <Card
+            hover
+            className="flex flex-col items-center justify-center p-6 hover:bg-teal-50 border-teal-100 min-h-[140px]"
+          >
+            <div className="p-3 bg-teal-100 rounded-full mb-3 text-teal-600">
+              <ClipboardCheck className="w-8 h-8" />
+            </div>
+            <span className="font-semibold text-gray-800 text-center">
+              Semakan Buku
             </span>
           </Card>
         </Link>
@@ -526,12 +541,12 @@ export default function DashboardPage() {
             ) : (pbdError || eventsError || settingsError) ? (
               <>
                 <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                Gagal disambung ke Supabase
+                Ralat memuat data
               </>
             ) : (
               <>
                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                Disambung ke Supabase
+                Mod Demo (Data Tempatan)
               </>
             )}
           </p>

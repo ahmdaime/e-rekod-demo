@@ -234,6 +234,64 @@ export interface Database {
           updated_at?: string;
         };
       };
+      book_types: {
+        Row: {
+          id: string;
+          nama: string;
+          kelas: string;
+          subjek: "BM" | "Sejarah" | "PSV";
+          tarikh_list: string[];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          nama: string;
+          kelas: string;
+          subjek: "BM" | "Sejarah" | "PSV";
+          tarikh_list?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          nama?: string;
+          kelas?: string;
+          subjek?: "BM" | "Sejarah" | "PSV";
+          tarikh_list?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      book_checks: {
+        Row: {
+          id: string;
+          book_type_id: string;
+          murid_id: string;
+          tarikh: string;
+          status: "hantar" | "tidak_lengkap" | "tidak_hantar";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          book_type_id: string;
+          murid_id: string;
+          tarikh: string;
+          status: "hantar" | "tidak_lengkap" | "tidak_hantar";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          book_type_id?: string;
+          murid_id?: string;
+          tarikh?: string;
+          status?: "hantar" | "tidak_lengkap" | "tidak_hantar";
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -258,3 +316,5 @@ export type DbBehaviorEvent = Database["public"]["Tables"]["behavior_events"]["R
 export type DbPsvTask = Database["public"]["Tables"]["psv_tasks"]["Row"];
 export type DbPsvEvidence = Database["public"]["Tables"]["psv_evidence"]["Row"];
 export type DbAppSetting = Database["public"]["Tables"]["app_settings"]["Row"];
+export type DbBookType = Database["public"]["Tables"]["book_types"]["Row"];
+export type DbBookCheck = Database["public"]["Tables"]["book_checks"]["Row"];

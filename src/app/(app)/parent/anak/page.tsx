@@ -78,8 +78,36 @@ export default function AnakLoginPage() {
           </Button>
         </form>
 
+        {/* Demo IC List */}
+        <div className="mt-6 bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
+          <h3 className="text-sm font-bold text-emerald-800 mb-2">IC Contoh untuk Demo</h3>
+          <p className="text-xs text-emerald-600 mb-3">
+            Klik mana-mana IC di bawah untuk auto-isi. Semua data adalah <strong>REKAAN</strong>.
+          </p>
+          <div className="space-y-1.5">
+            {[
+              { ic: "140115-01-0123", nama: "DANIAL HAKIMI (6 Topaz)" },
+              { ic: "140518-03-0789", nama: "NUR AISYAH (6 Topaz)" },
+              { ic: "170210-01-3123", nama: "NUR IRDINA (3 Pearl)" },
+              { ic: "170425-02-3456", nama: "MIKHAIL DARWISH (3 Pearl)" },
+            ].map(({ ic, nama }) => (
+              <button
+                key={ic}
+                onClick={() => {
+                  setInputIc(ic.replace(/-/g, ""));
+                  setError("");
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg bg-white border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 transition-colors text-sm flex justify-between items-center group"
+              >
+                <span className="font-mono text-emerald-700 group-hover:text-emerald-900">{ic}</span>
+                <span className="text-xs text-gray-500">{nama}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Info Box */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+        <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
           <p className="text-sm text-blue-800">
             <strong>Nota:</strong> Masukkan 12 digit No. KP anak anda (tanpa dash).
             Jika menghadapi masalah, sila hubungi guru kelas.

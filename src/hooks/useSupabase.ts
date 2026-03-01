@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
 import type {
   DbStudent,
   DbAssessment,
@@ -9,62 +8,52 @@ import type {
   DbBehaviorEvent,
   DbPsvTask,
   DbPsvEvidence,
+  DbBookType,
+  DbBookCheck,
 } from "@/types/database";
+import {
+  DEMO_STUDENTS,
+  DEMO_ASSESSMENTS,
+  DEMO_PBD_RECORDS,
+  DEMO_BEHAVIOR_EVENTS,
+  DEMO_PSV_TASKS,
+  DEMO_PSV_EVIDENCE,
+  DEMO_BOOK_TYPES,
+  DEMO_BOOK_CHECKS,
+  DEMO_APP_SETTINGS,
+} from "@/data/demoData";
+
+// Helper to generate unique IDs
+let idCounter = Date.now();
+function genId(prefix: string) {
+  idCounter++;
+  return `${prefix}-${idCounter}`;
+}
 
 // ============================================
 // STUDENTS HOOK
 // ============================================
 export function useStudents() {
-  const [students, setStudents] = useState<DbStudent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [students] = useState<DbStudent[]>(DEMO_STUDENTS);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
-  const fetchStudents = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("students")
-      .select("*")
-      .order("nama");
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setStudents(data || []);
-    }
-    setLoading(false);
-  }, []);
+  const fetchStudents = useCallback(async () => {}, []);
 
   const getStudentByIc = useCallback(async (noKp: string) => {
-    // Normalize IC: remove dashes and format to XXXXXX-XX-XXXX
     const digits = noKp.replace(/\D/g, "");
     const formattedIc = digits.length === 12
       ? `${digits.slice(0, 6)}-${digits.slice(6, 8)}-${digits.slice(8, 12)}`
       : noKp;
 
-    const { data, error } = await supabase
-      .from("students")
-      .select("*")
-      .eq("no_kp", formattedIc)
-      .single();
-
-    if (error) return null;
-    return data as DbStudent;
+    return DEMO_STUDENTS.find((s) => s.no_kp === formattedIc) || null;
   }, []);
 
   const getStudentsByClass = useCallback(async (kelas: string) => {
-    const { data, error } = await supabase
-      .from("students")
-      .select("*")
-      .eq("kelas", kelas)
-      .order("nama");
-
-    if (error) return [];
-    return (data || []) as DbStudent[];
+    return DEMO_STUDENTS.filter((s) => s.kelas === kelas).sort((a, b) =>
+      a.nama.localeCompare(b.nama)
+    );
   }, []);
-
-  useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
 
   return { students, loading, error, fetchStudents, getStudentByIc, getStudentsByClass };
 }
@@ -73,35 +62,16 @@ export function useStudents() {
 // ASSESSMENTS HOOK
 // ============================================
 export function useAssessments() {
-  const [assessments, setAssessments] = useState<DbAssessment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [assessments] = useState<DbAssessment[]>(DEMO_ASSESSMENTS);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
-  const fetchAssessments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error: err } = await supabase
-      .from("assessments")
-      .select("*")
-      .order("subjek")
-      .order("nama");
-
-    if (err) {
-      setError(err.message);
-    } else {
-      setAssessments((data || []) as DbAssessment[]);
-    }
-    setLoading(false);
-  }, []);
+  const fetchAssessments = useCallback(async () => {}, []);
 
   const getAssessmentsBySubject = useCallback(
     (subjek: string) => assessments.filter((a) => a.subjek === subjek),
     [assessments]
   );
-
-  useEffect(() => {
-    fetchAssessments();
-  }, [fetchAssessments]);
 
   return { assessments, loading, error, fetchAssessments, getAssessmentsBySubject };
 }
@@ -112,7 +82,7 @@ export function useAssessments() {
 export function usePbdRecords(filters?: { kelas?: string; muridId?: string }) {
   const [pbdRecords, setPbdRecords] = useState<DbPbdRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   const fetchPbdRecords = useCallback(async () => {
     if (filters?.muridId !== undefined && !filters.muridId) {
@@ -121,23 +91,11 @@ export function usePbdRecords(filters?: { kelas?: string; muridId?: string }) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    let query = supabase
-      .from("pbd_records")
-      .select("*")
-      .order("updated_at", { ascending: false });
+    let filtered = [...DEMO_PBD_RECORDS];
+    if (filters?.kelas) filtered = filtered.filter((r) => r.kelas === filters.kelas);
+    if (filters?.muridId) filtered = filtered.filter((r) => r.murid_id === filters.muridId);
 
-    if (filters?.kelas) query = query.eq("kelas", filters.kelas);
-    if (filters?.muridId) query = query.eq("murid_id", filters.muridId);
-
-    const { data, error: err } = await query;
-
-    if (err) {
-      setError(err.message);
-    } else {
-      setPbdRecords((data || []) as DbPbdRecord[]);
-    }
+    setPbdRecords(filtered);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.kelas, filters?.muridId]);
@@ -158,33 +116,38 @@ export function usePbdRecords(filters?: { kelas?: string; muridId?: string }) {
       tp: number | null;
       catatan?: string;
     }) => {
-      const { data, error } = await supabase
-        .from("pbd_records")
-        .upsert(record as never, {
-          onConflict: "murid_id,pentaksiran_id,tahun_akademik,semester",
-        })
-        .select()
-        .single();
+      const now = new Date().toISOString();
+      const newRecord: DbPbdRecord = {
+        id: genId("pbd"),
+        murid_id: record.murid_id,
+        subjek: record.subjek as DbPbdRecord["subjek"],
+        kelas: record.kelas,
+        pentaksiran_id: record.pentaksiran_id,
+        tahun_akademik: record.tahun_akademik,
+        semester: record.semester as DbPbdRecord["semester"],
+        tp: record.tp,
+        catatan: record.catatan || "",
+        created_at: now,
+        updated_at: now,
+      };
 
-      if (!error && data) {
-        const typedData = data as DbPbdRecord;
-        setPbdRecords((prev) => {
-          const index = prev.findIndex(
-            (r) =>
-              r.murid_id === typedData.murid_id &&
-              r.pentaksiran_id === typedData.pentaksiran_id &&
-              r.tahun_akademik === typedData.tahun_akademik &&
-              r.semester === typedData.semester
-          );
-          if (index >= 0) {
-            const newRecords = [...prev];
-            newRecords[index] = typedData;
-            return newRecords;
-          }
-          return [typedData, ...prev];
-        });
-      }
-      return { data: data as DbPbdRecord | null, error };
+      setPbdRecords((prev) => {
+        const index = prev.findIndex(
+          (r) =>
+            r.murid_id === newRecord.murid_id &&
+            r.pentaksiran_id === newRecord.pentaksiran_id &&
+            r.tahun_akademik === newRecord.tahun_akademik &&
+            r.semester === newRecord.semester
+        );
+        if (index >= 0) {
+          const updated = [...prev];
+          updated[index] = { ...prev[index], ...newRecord, id: prev[index].id };
+          return updated;
+        }
+        return [newRecord, ...prev];
+      });
+
+      return { data: newRecord, error: null };
     },
     []
   );
@@ -202,34 +165,54 @@ export function usePbdRecords(filters?: { kelas?: string; muridId?: string }) {
         catatan?: string;
       }[]
     ) => {
-      const { data, error } = await supabase
-        .from("pbd_records")
-        .upsert(records as never[], {
-          onConflict: "murid_id,pentaksiran_id,tahun_akademik,semester",
-        })
-        .select();
+      const now = new Date().toISOString();
+      const newRecords: DbPbdRecord[] = records.map((r) => ({
+        id: genId("pbd"),
+        murid_id: r.murid_id,
+        subjek: r.subjek as DbPbdRecord["subjek"],
+        kelas: r.kelas,
+        pentaksiran_id: r.pentaksiran_id,
+        tahun_akademik: r.tahun_akademik,
+        semester: r.semester as DbPbdRecord["semester"],
+        tp: r.tp,
+        catatan: r.catatan || "",
+        created_at: now,
+        updated_at: now,
+      }));
 
-      if (!error) {
-        await fetchPbdRecords();
-      }
-      return { data: data as DbPbdRecord[] | null, error };
+      setPbdRecords((prev) => {
+        let updated = [...prev];
+        for (const nr of newRecords) {
+          const idx = updated.findIndex(
+            (r) =>
+              r.murid_id === nr.murid_id &&
+              r.pentaksiran_id === nr.pentaksiran_id &&
+              r.tahun_akademik === nr.tahun_akademik &&
+              r.semester === nr.semester
+          );
+          if (idx >= 0) {
+            updated[idx] = { ...updated[idx], ...nr, id: updated[idx].id };
+          } else {
+            updated = [nr, ...updated];
+          }
+        }
+        return updated;
+      });
+
+      return { data: newRecords, error: null };
     },
-    [fetchPbdRecords]
+    []
   );
 
   const resetPbdByClass = useCallback(
     async (kelas: string) => {
-      const { error, count } = await supabase
-        .from("pbd_records")
-        .delete({ count: "exact" })
-        .eq("kelas", kelas);
-
-      if (!error) {
-        await fetchPbdRecords();
-      }
-      return { error, deletedCount: count ?? 0 };
+      setPbdRecords((prev) => {
+        const remaining = prev.filter((r) => r.kelas !== kelas);
+        return remaining;
+      });
+      return { error: null as { message: string } | null, deletedCount: 0 };
     },
-    [fetchPbdRecords]
+    []
   );
 
   useEffect(() => {
@@ -245,7 +228,7 @@ export function usePbdRecords(filters?: { kelas?: string; muridId?: string }) {
 export function useBehaviorEvents(filters?: { kelas?: string; muridId?: string }) {
   const [behaviorEvents, setBehaviorEvents] = useState<DbBehaviorEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   const fetchBehaviorEvents = useCallback(async () => {
     if (filters?.muridId !== undefined && !filters.muridId) {
@@ -254,23 +237,12 @@ export function useBehaviorEvents(filters?: { kelas?: string; muridId?: string }
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    let query = supabase
-      .from("behavior_events")
-      .select("*")
-      .order("timestamp", { ascending: false });
+    let filtered = [...DEMO_BEHAVIOR_EVENTS];
+    if (filters?.kelas) filtered = filtered.filter((e) => e.kelas === filters.kelas);
+    if (filters?.muridId) filtered = filtered.filter((e) => e.murid_id === filters.muridId);
+    filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    if (filters?.kelas) query = query.eq("kelas", filters.kelas);
-    if (filters?.muridId) query = query.eq("murid_id", filters.muridId);
-
-    const { data, error: err } = await query;
-
-    if (err) {
-      setError(err.message);
-    } else {
-      setBehaviorEvents((data || []) as DbBehaviorEvent[]);
-    }
+    setBehaviorEvents(filtered);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.kelas, filters?.muridId]);
@@ -297,42 +269,38 @@ export function useBehaviorEvents(filters?: { kelas?: string; muridId?: string }
       is_public?: boolean;
       timestamp?: string;
     }) => {
-      const { data, error } = await supabase
-        .from("behavior_events")
-        .insert(event as never)
-        .select()
-        .single();
+      const now = new Date().toISOString();
+      const newEvent: DbBehaviorEvent = {
+        id: genId("evt"),
+        murid_id: event.murid_id,
+        nama_murid: event.nama_murid,
+        kelas: event.kelas,
+        jenis: event.jenis,
+        kategori: event.kategori as DbBehaviorEvent["kategori"],
+        severity: (event.severity as DbBehaviorEvent["severity"]) || null,
+        catatan: event.catatan || "",
+        is_public: event.is_public ?? true,
+        timestamp: event.timestamp || now,
+        created_at: now,
+      };
 
-      if (!error && data) {
-        setBehaviorEvents((prev) => [data as DbBehaviorEvent, ...prev]);
-      }
-      return { data: data as DbBehaviorEvent | null, error };
+      setBehaviorEvents((prev) => [newEvent, ...prev]);
+      return { data: newEvent, error: null };
     },
     []
   );
 
   const deleteEvent = useCallback(async (id: string) => {
-    const { error } = await supabase.from("behavior_events").delete().eq("id", id);
-
-    if (!error) {
-      setBehaviorEvents((prev) => prev.filter((e) => e.id !== id));
-    }
-    return { error };
+    setBehaviorEvents((prev) => prev.filter((e) => e.id !== id));
+    return { error: null };
   }, []);
 
   const resetEventsByClass = useCallback(
     async (kelas: string) => {
-      const { error, count } = await supabase
-        .from("behavior_events")
-        .delete({ count: "exact" })
-        .eq("kelas", kelas);
-
-      if (!error) {
-        await fetchBehaviorEvents();
-      }
-      return { error, deletedCount: count ?? 0 };
+      setBehaviorEvents((prev) => prev.filter((e) => e.kelas !== kelas));
+      return { error: null as { message: string } | null, deletedCount: 0 };
     },
-    [fetchBehaviorEvents]
+    []
   );
 
   useEffect(() => {
@@ -356,25 +324,11 @@ export function useBehaviorEvents(filters?: { kelas?: string; muridId?: string }
 // PSV TASKS HOOK
 // ============================================
 export function usePsvTasks() {
-  const [psvTasks, setPsvTasks] = useState<DbPsvTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [psvTasks, setPsvTasks] = useState<DbPsvTask[]>(DEMO_PSV_TASKS);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
-  const fetchPsvTasks = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error: err } = await supabase
-      .from("psv_tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (err) {
-      setError(err.message);
-    } else {
-      setPsvTasks((data || []) as DbPsvTask[]);
-    }
-    setLoading(false);
-  }, []);
+  const fetchPsvTasks = useCallback(async () => {}, []);
 
   const getTasksByClass = useCallback(
     (kelas: string) => psvTasks.filter((t) => t.kelas === kelas),
@@ -383,57 +337,45 @@ export function usePsvTasks() {
 
   const addTask = useCallback(
     async (task: { nama: string; kelas: string; tarikh_mula?: string; tarikh_akhir: string }) => {
-      const { data, error } = await supabase
-        .from("psv_tasks")
-        .insert(task as never)
-        .select()
-        .single();
-
-      if (!error && data) {
-        setPsvTasks((prev) => [data as DbPsvTask, ...prev]);
-      }
-      return { data: data as DbPsvTask | null, error };
+      const now = new Date().toISOString();
+      const newTask: DbPsvTask = {
+        id: genId("task"),
+        nama: task.nama,
+        kelas: task.kelas,
+        tarikh_mula: task.tarikh_mula || now.split("T")[0],
+        tarikh_akhir: task.tarikh_akhir,
+        created_at: now,
+      };
+      setPsvTasks((prev) => [newTask, ...prev]);
+      return { data: newTask, error: null };
     },
     []
   );
 
   const updateTask = useCallback(
     async (taskId: string, updates: { nama?: string; tarikh_akhir?: string }) => {
-      const { data, error } = await supabase
-        .from("psv_tasks")
-        .update(updates as never)
-        .eq("id", taskId)
-        .select()
-        .single();
-
-      if (!error && data) {
-        const typedData = data as DbPsvTask;
-        setPsvTasks((prev) =>
-          prev.map((t) => (t.id === taskId ? typedData : t))
-        );
-      }
-      return { data: data as DbPsvTask | null, error };
+      let updatedTask: DbPsvTask | null = null;
+      setPsvTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === taskId) {
+            updatedTask = { ...t, ...updates };
+            return updatedTask;
+          }
+          return t;
+        })
+      );
+      return { data: updatedTask, error: null };
     },
     []
   );
 
   const deleteTask = useCallback(
     async (taskId: string) => {
-      // Padam evidence berkaitan terlebih dahulu
-      await supabase.from("psv_evidence").delete().eq("tugasan_id", taskId);
-      // Padam tugasan
-      const { error } = await supabase.from("psv_tasks").delete().eq("id", taskId);
-      if (!error) {
-        setPsvTasks((prev) => prev.filter((t) => t.id !== taskId));
-      }
-      return { error };
+      setPsvTasks((prev) => prev.filter((t) => t.id !== taskId));
+      return { error: null };
     },
     []
   );
-
-  useEffect(() => {
-    fetchPsvTasks();
-  }, [fetchPsvTasks]);
 
   return { psvTasks, loading, error, fetchPsvTasks, getTasksByClass, addTask, updateTask, deleteTask };
 }
@@ -444,7 +386,7 @@ export function usePsvTasks() {
 export function usePsvEvidence(filters?: { muridId?: string }) {
   const [psvEvidence, setPsvEvidence] = useState<DbPsvEvidence[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   const fetchPsvEvidence = useCallback(async () => {
     if (filters?.muridId !== undefined && !filters.muridId) {
@@ -453,22 +395,10 @@ export function usePsvEvidence(filters?: { muridId?: string }) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    let query = supabase
-      .from("psv_evidence")
-      .select("*")
-      .order("updated_at", { ascending: false });
+    let filtered = [...DEMO_PSV_EVIDENCE];
+    if (filters?.muridId) filtered = filtered.filter((e) => e.murid_id === filters.muridId);
 
-    if (filters?.muridId) query = query.eq("murid_id", filters.muridId);
-
-    const { data, error: err } = await query;
-
-    if (err) {
-      setError(err.message);
-    } else {
-      setPsvEvidence((data || []) as DbPsvEvidence[]);
-    }
+    setPsvEvidence(filtered);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters?.muridId]);
@@ -492,29 +422,32 @@ export function usePsvEvidence(filters?: { muridId?: string }) {
       catatan?: string;
       status?: string;
     }) => {
-      const { data, error } = await supabase
-        .from("psv_evidence")
-        .upsert(evidence as never, {
-          onConflict: "tugasan_id,murid_id",
-        })
-        .select()
-        .single();
+      const now = new Date().toISOString();
+      const newEvidence: DbPsvEvidence = {
+        id: genId("ev"),
+        tugasan_id: evidence.tugasan_id,
+        murid_id: evidence.murid_id,
+        link_bukti: evidence.link_bukti || "",
+        gambar_url: evidence.gambar_url || "",
+        catatan: evidence.catatan || "",
+        status: (evidence.status as DbPsvEvidence["status"]) || "Belum Hantar",
+        created_at: now,
+        updated_at: now,
+      };
 
-      if (!error && data) {
-        const typedData = data as DbPsvEvidence;
-        setPsvEvidence((prev) => {
-          const index = prev.findIndex(
-            (e) => e.tugasan_id === typedData.tugasan_id && e.murid_id === typedData.murid_id
-          );
-          if (index >= 0) {
-            const newEvidence = [...prev];
-            newEvidence[index] = typedData;
-            return newEvidence;
-          }
-          return [typedData, ...prev];
-        });
-      }
-      return { data: data as DbPsvEvidence | null, error };
+      setPsvEvidence((prev) => {
+        const index = prev.findIndex(
+          (e) => e.tugasan_id === newEvidence.tugasan_id && e.murid_id === newEvidence.murid_id
+        );
+        if (index >= 0) {
+          const updated = [...prev];
+          updated[index] = { ...prev[index], ...newEvidence, id: prev[index].id };
+          return updated;
+        }
+        return [newEvidence, ...prev];
+      });
+
+      return { data: newEvidence, error: null };
     },
     []
   );
@@ -538,44 +471,211 @@ export function usePsvEvidence(filters?: { muridId?: string }) {
 // APP SETTINGS HOOK
 // ============================================
 export function useAppSettings() {
-  const [pbdVisibleToParents, setPbdVisibleToParents] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [pbdVisibleToParents, setPbdVisibleToParents] = useState(DEMO_APP_SETTINGS.pbdVisibleToParents);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
-  const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error: err } = await supabase
-      .from("app_settings")
-      .select("*")
-      .eq("key", "pbd_visible_to_parents")
-      .single();
-
-    if (err) {
-      setError(err.message);
-    } else if (data) {
-      const record = data as { value: { enabled?: boolean } };
-      setPbdVisibleToParents(record.value?.enabled ?? false);
-    }
-    setLoading(false);
-  }, []);
+  const fetchSettings = useCallback(async () => {}, []);
 
   const togglePbdVisibility = useCallback(async () => {
-    const newValue = !pbdVisibleToParents;
-    const { error } = await supabase
-      .from("app_settings")
-      .update({ value: { enabled: newValue } } as never)
-      .eq("key", "pbd_visible_to_parents");
-
-    if (!error) {
-      setPbdVisibleToParents(newValue);
-    }
-    return { error };
-  }, [pbdVisibleToParents]);
-
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
+    setPbdVisibleToParents((prev) => !prev);
+    return { error: null };
+  }, []);
 
   return { pbdVisibleToParents, loading, error, fetchSettings, togglePbdVisibility };
+}
+
+// ============================================
+// BOOK TYPES HOOK
+// ============================================
+export function useBookTypes(filters?: { kelas?: string; subjek?: string }) {
+  const [bookTypes, setBookTypes] = useState<DbBookType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error] = useState<string | null>(null);
+
+  const fetchBookTypes = useCallback(async () => {
+    let filtered = [...DEMO_BOOK_TYPES];
+    if (filters?.kelas) filtered = filtered.filter((b) => b.kelas === filters.kelas);
+    if (filters?.subjek) filtered = filtered.filter((b) => b.subjek === filters.subjek);
+    filtered.sort((a, b) => a.nama.localeCompare(b.nama));
+    setBookTypes(filtered);
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters?.kelas, filters?.subjek]);
+
+  const addBookType = useCallback(
+    async (book: { nama: string; kelas: string; subjek: string }) => {
+      const now = new Date().toISOString();
+      const newBook: DbBookType = {
+        id: genId("bt"),
+        nama: book.nama,
+        kelas: book.kelas,
+        subjek: book.subjek as DbBookType["subjek"],
+        tarikh_list: [],
+        created_at: now,
+        updated_at: now,
+      };
+      // Check duplicate
+      const exists = bookTypes.find(
+        (b) => b.nama === book.nama && b.kelas === book.kelas && b.subjek === book.subjek
+      );
+      if (exists) {
+        return { data: null, error: { message: "duplicate key" } };
+      }
+      setBookTypes((prev) => [...prev, newBook].sort((a, b) => a.nama.localeCompare(b.nama)));
+      return { data: newBook, error: null };
+    },
+    [bookTypes]
+  );
+
+  const addDate = useCallback(
+    async (bookTypeId: string, tarikh: string) => {
+      const current = bookTypes.find((b) => b.id === bookTypeId);
+      if (!current) return { data: null, error: { message: "Buku tidak dijumpai" } };
+
+      const currentList = (current.tarikh_list || []) as string[];
+      if (currentList.includes(tarikh)) {
+        return { data: null, error: { message: "Tarikh sudah wujud" } };
+      }
+
+      const newList = [...currentList, tarikh].sort();
+      const updated = { ...current, tarikh_list: newList, updated_at: new Date().toISOString() };
+      setBookTypes((prev) => prev.map((b) => (b.id === bookTypeId ? updated : b)));
+      return { data: updated, error: null };
+    },
+    [bookTypes]
+  );
+
+  const removeDate = useCallback(
+    async (bookTypeId: string, tarikh: string) => {
+      const current = bookTypes.find((b) => b.id === bookTypeId);
+      if (!current) return { data: null, error: { message: "Buku tidak dijumpai" } };
+
+      const currentList = (current.tarikh_list || []) as string[];
+      const newList = currentList.filter((t) => t !== tarikh);
+      const updated = { ...current, tarikh_list: newList, updated_at: new Date().toISOString() };
+      setBookTypes((prev) => prev.map((b) => (b.id === bookTypeId ? updated : b)));
+      return { data: updated, error: null };
+    },
+    [bookTypes]
+  );
+
+  const deleteBookType = useCallback(
+    async (bookTypeId: string) => {
+      setBookTypes((prev) => prev.filter((b) => b.id !== bookTypeId));
+      return { error: null as { message: string } | null };
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchBookTypes();
+  }, [fetchBookTypes]);
+
+  return { bookTypes, loading, error, fetchBookTypes, addBookType, addDate, removeDate, deleteBookType };
+}
+
+// ============================================
+// BOOK CHECKS HOOK
+// ============================================
+export function useBookChecks(filters?: { bookTypeId?: string; muridId?: string }) {
+  const [bookChecks, setBookChecks] = useState<DbBookCheck[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error] = useState<string | null>(null);
+
+  const fetchBookChecks = useCallback(async () => {
+    if (filters?.bookTypeId !== undefined && !filters.bookTypeId) {
+      setBookChecks([]);
+      setLoading(false);
+      return;
+    }
+    if (filters?.muridId !== undefined && !filters.muridId) {
+      setBookChecks([]);
+      setLoading(false);
+      return;
+    }
+
+    let filtered = [...DEMO_BOOK_CHECKS];
+    if (filters?.bookTypeId) filtered = filtered.filter((c) => c.book_type_id === filters.bookTypeId);
+    if (filters?.muridId) filtered = filtered.filter((c) => c.murid_id === filters.muridId);
+    filtered.sort((a, b) => a.tarikh.localeCompare(b.tarikh));
+
+    setBookChecks(filtered);
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters?.bookTypeId, filters?.muridId]);
+
+  const upsertBookCheck = useCallback(
+    async (record: {
+      book_type_id: string;
+      murid_id: string;
+      tarikh: string;
+      status: string;
+    }) => {
+      const now = new Date().toISOString();
+      const newRecord: DbBookCheck = {
+        id: genId("bc"),
+        book_type_id: record.book_type_id,
+        murid_id: record.murid_id,
+        tarikh: record.tarikh,
+        status: record.status as DbBookCheck["status"],
+        created_at: now,
+        updated_at: now,
+      };
+
+      setBookChecks((prev) => {
+        const index = prev.findIndex(
+          (r) =>
+            r.book_type_id === newRecord.book_type_id &&
+            r.murid_id === newRecord.murid_id &&
+            r.tarikh === newRecord.tarikh
+        );
+        if (index >= 0) {
+          const updated = [...prev];
+          updated[index] = { ...prev[index], ...newRecord, id: prev[index].id };
+          return updated;
+        }
+        return [...prev, newRecord];
+      });
+
+      return { data: newRecord, error: null };
+    },
+    []
+  );
+
+  const deleteBookCheck = useCallback(
+    async (bookTypeId: string, muridId: string, tarikh: string) => {
+      setBookChecks((prev) =>
+        prev.filter(
+          (r) => !(r.book_type_id === bookTypeId && r.murid_id === muridId && r.tarikh === tarikh)
+        )
+      );
+      return { error: null as { message: string } | null };
+    },
+    []
+  );
+
+  const deleteBookChecksByDate = useCallback(
+    async (bookTypeId: string, tarikh: string) => {
+      setBookChecks((prev) =>
+        prev.filter((r) => !(r.book_type_id === bookTypeId && r.tarikh === tarikh))
+      );
+      return { error: null as { message: string } | null };
+    },
+    []
+  );
+
+  useEffect(() => {
+    fetchBookChecks();
+  }, [fetchBookChecks]);
+
+  return {
+    bookChecks,
+    loading,
+    error,
+    fetchBookChecks,
+    upsertBookCheck,
+    deleteBookCheck,
+    deleteBookChecksByDate,
+  };
 }

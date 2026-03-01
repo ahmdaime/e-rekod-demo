@@ -72,7 +72,14 @@ export default function ParentLandingPage() {
       {/* Info */}
       <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-500 text-center">
         <p>
-          <strong>Nota:</strong> Papan Token menunjukkan kedudukan semua murid. Rekod terperinci anak anda boleh dilihat melalui "Rekod Anak Saya".
+          <strong>Nota:</strong> Papan Token menunjukkan kedudukan semua murid. Rekod terperinci anak anda boleh dilihat melalui &quot;Rekod Anak Saya&quot;.
+        </p>
+      </div>
+
+      {/* Demo Notice */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800 text-center">
+        <p>
+          <strong>Nota Demo:</strong> Semua nama dan No. KP murid dalam demo ini adalah <strong>REKAAN</strong> semata-mata dan tidak merujuk kepada individu sebenar.
         </p>
       </div>
     </div>

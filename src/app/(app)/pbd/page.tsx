@@ -244,9 +244,9 @@ export default function PbdPage() {
   );
 
   // Export to Excel
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
-      exportPbdToExcel({
+      await exportPbdToExcel({
         subject: selectedSubject,
         className: selectedClass,
         students: filteredStudents,

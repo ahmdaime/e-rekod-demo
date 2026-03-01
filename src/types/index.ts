@@ -8,6 +8,7 @@ export type Subject = "BM" | "Sejarah" | "PSV";
 export type Severity = "Low" | "Medium" | "High";
 export type EventCategory = "Positif" | "Negatif";
 export type Semester = "PBD 1" | "PBD 2";
+export type BookCheckStatus = "hantar" | "tidak_lengkap" | "tidak_hantar";
 
 // Preset Event type (used by PRESET_EVENTS constant)
 interface PresetEvent {
@@ -45,6 +46,38 @@ export const SEVERITY_COLORS: Record<Severity, string> = {
   Medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
   High: "bg-red-100 text-red-800 border-red-200",
 };
+
+// ============================================
+// BOOK CHECK CONSTANTS
+// ============================================
+
+export const BOOK_CHECK_STYLES: Record<BookCheckStatus, React.CSSProperties> = {
+  hantar: { backgroundColor: "#22c55e", color: "white" },
+  tidak_lengkap: { backgroundColor: "#eab308", color: "white" },
+  tidak_hantar: { backgroundColor: "#ef4444", color: "white" },
+};
+
+export const BOOK_CHECK_LABELS: Record<BookCheckStatus, string> = {
+  hantar: "Hantar",
+  tidak_lengkap: "Tidak Lengkap",
+  tidak_hantar: "Tidak Hantar",
+};
+
+export const BOOK_CHECK_SYMBOLS: Record<BookCheckStatus, string> = {
+  hantar: "\u2713",
+  tidak_lengkap: "~",
+  tidak_hantar: "\u2717",
+};
+
+// Kitaran klik: kosong → hantar → tidak_lengkap → tidak_hantar → kosong
+export const BOOK_CHECK_CYCLE: (BookCheckStatus | null)[] = [
+  null,
+  "hantar",
+  "tidak_lengkap",
+  "tidak_hantar",
+];
+
+export const BOOK_CHECK_JENIS_PREFIX = "Semakan Buku: ";
 
 // ============================================
 // TOKEN SYSTEM
